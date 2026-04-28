@@ -249,7 +249,7 @@
             const link = e.target.closest('.js-author-link');
             if (!link) return;
             e.preventDefault();
-            Hexo.openExternal('https://wlsdzyzl.github.io/');
+            Hexo.openExternal('https://wlsdzyzl.github.io/about/');
         });
 
         // Publish close button

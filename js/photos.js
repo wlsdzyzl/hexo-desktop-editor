@@ -80,7 +80,7 @@
             configData = nextConfig;
             settingsStatus.textContent = '配置已保存。'; settingsStatus.className = 'settings-status success';
             closeSettings();
-            loadPhotos();
+            window.Hexo.navigateTo('index.html');
         } catch (err) {
             settingsStatus.textContent = `保存配置失败：${err.message}`;
             settingsStatus.className = 'settings-status error';
@@ -124,7 +124,13 @@
             const result = await listPhotosFromDisk();
             photosDir = result.photosDir || '';
             photos = result.photos || [];
-            photoPath.textContent = photosDir || '未找到照片目录';
+            if (!photosDir) {
+                photoPath.textContent = '请在设置中配置 hexoPath 和 photoDir';
+                photoStatus.textContent = '';
+                renderPhotoGrid();
+                return;
+            }
+            photoPath.textContent = photosDir;
             renderPhotoGrid();
         } catch (err) {
             photoStatus.textContent = `加载失败：${err.message}`;
@@ -153,10 +159,17 @@
             const footer = document.createElement('div'); footer.className = 'photo-card-footer';
             footer.style.cssText = 'display:flex;align-items:center;gap:6px;padding:6px 8px;background:#fff;border-top:1px solid #edf0f3;';
 
+            // Wrapper cell keeps layout stable when switching between name/input
+            const cell = document.createElement('div');
+            cell.style.cssText = 'flex:1;min-width:0;height:22px;display:flex;align-items:center;';
+
             const name = document.createElement('span'); name.className = 'photo-name';
             name.textContent = photo.fileName; name.title = '点击重命名';
-            name.style.cssText = 'flex:1;min-width:0;overflow:hidden;font-size:12px;color:#2563eb;text-overflow:ellipsis;white-space:nowrap;cursor:pointer;';
-            name.onclick = function () { startInlineRename(footer, photo); };
+            name.style.cssText = 'overflow:hidden;font-size:12px;color:#2563eb;text-overflow:ellipsis;white-space:nowrap;cursor:pointer;';
+            name.onclick = function () { startInlineRename(cell, photo); };
+
+            cell.appendChild(name);
+            footer.appendChild(cell);
 
             const delBtn = document.createElement('span'); delBtn.className = 'photo-delete-btn';
             delBtn.textContent = '❌'; delBtn.title = '删除';
@@ -165,33 +178,44 @@
             delBtn.onmouseleave = () => delBtn.style.opacity = '0.6';
             delBtn.onclick = function (e) { e.stopPropagation(); deletePhoto(photo.relativePath, photo.fileName); };
 
-            footer.appendChild(name); footer.appendChild(delBtn);
+            footer.appendChild(delBtn);
             card.appendChild(img); card.appendChild(footer);
             photoGrid.appendChild(card);
         }
     }
 
-    function startInlineRename(footer, photo) {
-        if (footer.querySelector('.photo-rename-input')) return;
+    function startInlineRename(cell, photo) {
+        if (cell.querySelector('.photo-rename-input')) return;
         const dotIndex = photo.fileName.lastIndexOf('.');
         const ext = dotIndex > 0 ? photo.fileName.slice(dotIndex) : '';
         const baseName = dotIndex > 0 ? photo.fileName.slice(0, dotIndex) : photo.fileName;
-        footer.innerHTML = '';
+        cell.innerHTML = '';
 
         const input = document.createElement('input'); input.className = 'photo-rename-input';
         input.value = baseName; input.select();
-        input.style.cssText = 'flex:1;min-width:0;padding:2px 6px;font-size:12px;border:1px solid #4c8dff;border-radius:3px;outline:none;';
+        input.style.cssText = 'width:100%;height:100%;padding:0 4px;font-size:12px;border:1px solid #4c8dff;border-radius:3px;outline:none;';
+        cell.appendChild(input);
 
-        const saveBtn = document.createElement('button'); saveBtn.textContent = '保存';
-        saveBtn.style.cssText = 'flex-shrink:0;padding:2px 8px;font-size:12px;color:#fff;cursor:pointer;background:#2563eb;border:none;border-radius:3px;';
+        // Replace the parent footer's last child (delBtn) with save/cancel + del
+        const footer = cell.parentNode;
+        const delBtn = footer.lastChild;
+        delBtn.hidden = true;
+
+        const actions = document.createElement('div');
+        actions.style.cssText = 'display:flex;align-items:center;gap:4px;flex-shrink:0;';
+
+        const saveBtn = document.createElement('span'); saveBtn.textContent = '✓';
+        saveBtn.title = '保存';
+        saveBtn.style.cssText = 'width:22px;height:22px;font-size:14px;line-height:22px;text-align:center;color:#047857;cursor:pointer;';
         saveBtn.onclick = async function () {
             const newBase = input.value.trim();
             if (!newBase || newBase === baseName) { await loadPhotos(); return; }
             await doRename(photo.relativePath, newBase + ext);
         };
 
-        const cancelBtn = document.createElement('button'); cancelBtn.textContent = '取消';
-        cancelBtn.style.cssText = 'flex-shrink:0;padding:2px 8px;font-size:12px;color:#374151;cursor:pointer;background:#f3f4f6;border:1px solid #d1d5db;border-radius:3px;';
+        const cancelBtn = document.createElement('span'); cancelBtn.textContent = '✕';
+        cancelBtn.title = '取消';
+        cancelBtn.style.cssText = 'width:22px;height:22px;font-size:14px;line-height:22px;text-align:center;color:#9ca3af;cursor:pointer;';
         cancelBtn.onclick = () => loadPhotos();
 
         input.addEventListener('keydown', e => {
@@ -199,7 +223,10 @@
             if (e.key === 'Escape') cancelBtn.click();
         });
 
-        footer.appendChild(input); footer.appendChild(saveBtn); footer.appendChild(cancelBtn);
+        actions.appendChild(saveBtn);
+        actions.appendChild(cancelBtn);
+        actions.appendChild(delBtn);
+        footer.appendChild(actions);
     }
 
     async function doRename(relativePath, newFileName) {

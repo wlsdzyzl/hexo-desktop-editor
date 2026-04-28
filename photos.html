@@ -54,7 +54,7 @@
         }
         .settings-overlay {
             position: fixed; inset: 0; display: grid; place-items: center;
-            padding: 24px; background: rgba(15,23,42,0.38); z-index: 20;
+            padding: 24px; background: rgba(15,23,42,0.38); z-index: 40;
         }
         .settings-overlay[hidden] { display: none; }
         .settings-dialog {
@@ -140,7 +140,7 @@
         </div>
         <footer class="settings-footer">
             <button id="settingsCancelBtn" class="small-btn" type="button">取消</button>
-            <button id="settingsSaveBtn" class="small-btn" type="button">保存</button>
+            <button id="settingsSaveBtn" class="small-btn" type="submit" form="settingsForm">保存</button>
         </footer>
     </section>
 </div>

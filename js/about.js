@@ -79,7 +79,7 @@
             configData = nextConfig;
             settingsStatus.textContent = '配置已保存。'; settingsStatus.className = 'settings-status success';
             closeSettings();
-            loadAbout();
+            window.Hexo.navigateTo('index.html');
         } catch (err) {
             settingsStatus.textContent = `保存配置失败：${err.message}`;
             settingsStatus.className = 'settings-status error';
@@ -124,10 +124,15 @@
             if (bridge && bridge.readAboutFile) doc = await bridge.readAboutFile();
             else if (ipc && ipc.invoke) doc = await ipc.invoke('read-about-file');
             else throw new Error('无法读取关于页面');
-            textarea.value = doc.content || '';
+            if (!doc.filePath) {
+                pathDisplay.textContent = '请在设置中配置 hexoPath 和 aboutDir';
+                textarea.value = '';
+            } else {
+                textarea.value = doc.content || '';
+                pathDisplay.textContent = doc.filePath;
+            }
             updateHighlight();
             updatePreview();
-            pathDisplay.textContent = doc.filePath || '';
         } catch (err) { alert(`读取关于页面失败：${err.message}`); }
     }
 

@@ -5,9 +5,10 @@ const path = require('path');
 const { pathToFileURL } = require('url');
 
 const isPackaged = app.isPackaged;
-const configPath = isPackaged
-    ? path.join(process.resourcesPath, 'config.json')
-    : path.join(__dirname, 'config.json');
+function getConfigPath() {
+    if (isPackaged) return path.join(app.getPath('userData'), 'config.json');
+    return path.join(__dirname, 'config.json');
+}
 const markdownExtensions = new Set(['.md', '.markdown', '.mdown', '.mkd']);
 const imageExtensions = new Set(['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.svg', '.avif']);
 
@@ -28,22 +29,22 @@ function createWindow() {
 }
 
 function readConfigFile() {
-    if (!fs.existsSync(configPath)) {
+    if (!fs.existsSync(getConfigPath())) {
         const defaults = { hexoPath: '', photoDir: '', aboutDir: '', gitRepo: '', sourceBrance: 'main', publicBrance: 'gh-pages', commitMessage: 'Update blog', deepseekAPIKey: '' };
-        fs.writeFileSync(configPath, JSON.stringify(defaults, null, 2) + '\n', 'utf8');
+        fs.writeFileSync(getConfigPath(), JSON.stringify(defaults, null, 2) + '\n', 'utf8');
         return defaults;
     }
-    const raw = fs.readFileSync(configPath, 'utf8');
+    const raw = fs.readFileSync(getConfigPath(), 'utf8');
     return JSON.parse(raw || '{}');
 }
 
 function writeConfigFile(config) {
-    fs.writeFileSync(configPath, `${JSON.stringify(config, null, 2)}\n`, 'utf8');
+    fs.writeFileSync(getConfigPath(), `${JSON.stringify(config, null, 2)}\n`, 'utf8');
 }
 
 function getPostsDir(config = readConfigFile()) {
     if (!config.hexoPath) {
-        throw new Error('config.json 中缺少 hexoPath');
+        return null;
     }
 
     const hexoPath = path.resolve(config.hexoPath);
@@ -60,22 +61,16 @@ function getPostsDir(config = readConfigFile()) {
 }
 
 function getPhotosDir(config = readConfigFile()) {
-    if (!config.hexoPath) {
-        throw new Error('config.json 中缺少 hexoPath');
-    }
-    if (!config.photoDir) {
-        throw new Error('config.json 中未配置 photoDir');
+    if (!config.hexoPath || !config.photoDir) {
+        return null;
     }
 
     return path.join(path.resolve(config.hexoPath), 'source', config.photoDir);
 }
 
 function getAboutFilePath(config = readConfigFile()) {
-    if (!config.hexoPath) {
-        throw new Error('config.json 中缺少 hexoPath');
-    }
-    if (!config.aboutDir) {
-        throw new Error('config.json 中未配置 aboutDir');
+    if (!config.hexoPath || !config.aboutDir) {
+        return null;
     }
 
     return path.join(path.resolve(config.hexoPath), 'source', config.aboutDir, 'index.md');
@@ -130,6 +125,7 @@ function toPostMeta(filePath, postsDir) {
 
 function listPostFiles() {
     const postsDir = getPostsDir();
+    if (!postsDir) return { postsDir: '', posts: [] };
 
     if (!fs.existsSync(postsDir)) {
         return { postsDir, posts: [] };
@@ -145,6 +141,7 @@ function listPostFiles() {
 
 function readPostFile(relativePath) {
     const postsDir = getPostsDir();
+    if (!postsDir) throw new Error('config.json 中缺少 hexoPath');
     const filePath = ensureInsideDir(path.join(postsDir, relativePath), postsDir);
 
     if (!fs.existsSync(filePath)) {
@@ -160,6 +157,7 @@ function readPostFile(relativePath) {
 
 function savePostFile(post) {
     const postsDir = getPostsDir();
+    if (!postsDir) throw new Error('config.json 中缺少 hexoPath');
     fs.mkdirSync(postsDir, { recursive: true });
 
     const currentRelativePath = post.relativePath || '';
@@ -185,6 +183,7 @@ function savePostFile(post) {
 
 function deletePostFile(relativePath) {
     const postsDir = getPostsDir();
+    if (!postsDir) throw new Error('config.json 中缺少 hexoPath');
     const filePath = ensureInsideDir(path.join(postsDir, relativePath), postsDir);
 
     if (!markdownExtensions.has(path.extname(filePath).toLowerCase())) {
@@ -201,6 +200,7 @@ function deletePostFile(relativePath) {
 
 function readAboutFile() {
     const filePath = getAboutFilePath();
+    if (!filePath) return { content: '' };
     ensureTextFile(filePath, '---\ntitle: About\n---\n\n');
     const stat = fs.statSync(filePath);
 
@@ -218,6 +218,7 @@ function readAboutFile() {
 
 function saveAboutFile(doc) {
     const filePath = getAboutFilePath();
+    if (!filePath) throw new Error('config.json 中未配置 aboutDir');
     ensureTextFile(filePath, '---\ntitle: About\n---\n\n');
     fs.writeFileSync(filePath, doc.content || '', 'utf8');
     return readAboutFile();
@@ -255,6 +256,7 @@ function walkImageFiles(dir, photosDir, out = []) {
 
 function listPhotos() {
     const photosDir = getPhotosDir();
+    if (!photosDir) return { photosDir: '', photos: [] };
     fs.mkdirSync(photosDir, { recursive: true });
 
     const photos = walkImageFiles(photosDir, photosDir)
@@ -357,7 +359,7 @@ async function uploadPhotos(win) {
 app.whenReady().then(() => {
     Menu.setApplicationMenu(null);
 
-    ipcMain.handle('get-config-path', () => configPath);
+    ipcMain.handle('get-config-path', () => getConfigPath());
     ipcMain.handle('read-config', () => readConfigFile());
     ipcMain.handle('save-config', (_event, config) => {
         writeConfigFile(config);
@@ -370,7 +372,7 @@ app.whenReady().then(() => {
     ipcMain.handle('delete-post-file', (_event, relativePath) => deletePostFile(relativePath));
     ipcMain.handle('read-about-file', () => readAboutFile());
     ipcMain.handle('save-about-file', (_event, doc) => saveAboutFile(doc));
-    ipcMain.handle('get-photos-dir', () => getPhotosDir());
+    ipcMain.handle('get-photos-dir', () => getPhotosDir() || '');
     ipcMain.handle('list-photos', () => listPhotos());
     ipcMain.handle('upload-photos', event => uploadPhotos(BrowserWindow.fromWebContents(event.sender)));
     ipcMain.handle('rename-photo-file', (_event, input) => renamePhotoFile(input));

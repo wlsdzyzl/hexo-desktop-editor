@@ -107,8 +107,7 @@
             configData = nextConfig;
             setSettingsStatus('配置已保存。', 'success');
             closeSettings();
-            await initFeatureButtons();
-            await loadPostsFromDisk();
+            window.Hexo.navigateTo('index.html');
         } catch (err) { setSettingsStatus(`保存配置失败：${err.message}`, 'error'); }
     }
 
@@ -157,11 +156,17 @@
             const current = keepSelection ? selectedId : null;
             const result = await listPosts();
             postsDir = result.postsDir || '';
+            if (!postsDir) {
+                selectedId = null; posts = [];
+                renderSidebarMsg('初次使用请设置您的blog路径');
+                clearEditor('请点击顶栏「设置」按钮，填写 hexoPath 后保存。');
+                return;
+            }
             posts = result.posts.map(p => ({ ...p, id: p.relativePath, content: null, dirty: false, isNew: false }));
-            if (!posts.length) { selectedId = null; renderSidebarMsg('没有找到 Markdown 文章'); clearEditor('文章目录为空'); return; }
+            if (!posts.length) { selectedId = null; renderSidebarMsg('没有找到 Markdown 文章'); clearEditor('文章目录为空：' + (postsDir || '')); return; }
             const next = (current && posts.some(p => p.id === current)) ? current : posts[0].id;
             await selectPost(next);
-        } catch (err) { selectedId = null; posts = []; renderSidebarMsg('读取文章失败'); clearEditor(err.message); alert('读取文章失败：' + (err.message || err)); }
+        } catch (err) { selectedId = null; posts = []; renderSidebarMsg('读取文章失败'); clearEditor(err.message); }
     }
 
     async function listPosts() {
