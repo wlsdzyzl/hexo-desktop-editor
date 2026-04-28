@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hexo Desktop Editor - 相册</title>
+    <title>Hexo Desktop Editor</title>
     <link rel="stylesheet" href="css/shared.css">
     <style>
         .photo-grid {
@@ -52,42 +52,6 @@
             padding: 24px; color: #667085; text-align: center;
             border: 1px dashed #d0d5dd; border-radius: 8px;
         }
-        .settings-overlay {
-            position: fixed; inset: 0; display: grid; place-items: center;
-            padding: 24px; background: rgba(15,23,42,0.38); z-index: 40;
-        }
-        .settings-overlay[hidden] { display: none; }
-        .settings-dialog {
-            width: min(640px, 100%); max-height: min(720px, calc(100vh - 48px));
-            display: flex; flex-direction: column; overflow: hidden;
-            color: #202124; background: #fff;
-            border: 1px solid #dfe3e8; border-radius: 8px;
-            box-shadow: 0 20px 54px rgba(15,23,42,0.22);
-        }
-        .settings-header, .settings-footer {
-            display: flex; align-items: center; gap: 8px;
-            padding: 12px 16px; border-bottom: 1px solid #edf0f3;
-        }
-        .settings-footer { justify-content: flex-end; border-top: 1px solid #edf0f3; border-bottom: 0; }
-        .settings-title { flex: 1; margin: 0; font-size: 16px; font-weight: 700; }
-        .settings-close {
-            width: 32px; height: 32px; color: #202124; cursor: pointer;
-            background: #f6f8fa; border: 1px solid #dfe3e8; border-radius: 6px;
-        }
-        .settings-body { padding: 16px; overflow: auto; }
-        .settings-path { margin: 0 0 12px; font-size: 12px; color: #667085; word-break: break-all; }
-        .settings-form { display: grid; gap: 12px; }
-        .settings-row { display: grid; grid-template-columns: 150px minmax(0, 1fr); gap: 10px; align-items: center; }
-        .settings-row label { font-size: 13px; font-weight: 600; color: #334155; }
-        .settings-input {
-            width: 100%; min-width: 0; padding: 8px 10px;
-            color: #202124; background: #fff;
-            border: 1px solid #dfe3e8; border-radius: 6px;
-        }
-        textarea.settings-input { min-height: 96px; resize: vertical; font-family: Consolas, "Courier New", monospace; }
-        .settings-status { min-height: 18px; margin: 12px 0 0; font-size: 13px; color: #667085; }
-        .settings-status.error { color: #b42318; }
-        .settings-status.success { color: #047857; }
     </style>
 </head>
 <body>
@@ -96,7 +60,7 @@
     <div class="toolbar__left">
         <button class="toolbar__btn" data-navigate="index.html">博客</button>
         <button class="toolbar__btn toolbar__btn--active">相册</button>
-        <button class="toolbar__btn" data-navigate="about.html" id="aboutBtn" hidden>关于</button>
+        <button class="toolbar__btn" data-navigate="about.html" id="aboutBtn">关于</button>
         <button class="toolbar__btn" id="settingsBtn">设置</button>
     </div>
     <button class="toolbar__btn toolbar__btn--publish" id="publishBtn">发布</button>
@@ -120,9 +84,11 @@
 <section id="publishOverlay" class="publish-overlay" hidden>
     <pre id="publishLog" class="publish-log"></pre>
     <p id="publishStatus" class="publish-status">正在发布...</p>
-    <div class="overlay-footer">
+    <div style="padding:8px 16px;border-top:1px solid #edf0f3;">
         <button id="publishCloseBtn" class="small-btn" disabled>关闭</button>
-        <a class="app-footer__link js-author-link" href="#">wlsdzyzl © 2026</a>
+        <div style="text-align:center;margin-top:4px;">
+            <a class="app-footer__link js-author-link" href="#">wlsdzyzl © 2026</a>
+        </div>
     </div>
 </section>
 

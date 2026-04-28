@@ -125,9 +125,11 @@
             photosDir = result.photosDir || '';
             photos = result.photos || [];
             if (!photosDir) {
-                photoPath.textContent = '请在设置中配置 hexoPath 和 photoDir';
-                photoStatus.textContent = '';
-                renderPhotoGrid();
+                photoPath.style.display = 'none';
+                photoGrid.innerHTML = '<div style="flex:1;display:flex;align-items:center;justify-content:center;font-size:14px;color:#667085;">请在设置中配置 photoDir</div>';
+                photoGrid.style.display = 'flex';
+                photoStatus.style.display = 'none';
+                document.querySelector('.overlay-footer').style.display = 'none';
                 return;
             }
             photoPath.textContent = photosDir;
@@ -272,16 +274,18 @@
     refreshBtn.addEventListener('click', loadPhotos);
 
     // Init
-    initFeatureButtons();
-    loadPhotos();
-
-    async function initFeatureButtons() {
+    (async () => {
         try {
             const config = await readConfig();
-            if (config.aboutDir) {
-                const btn = document.getElementById('aboutBtn');
-                if (btn) btn.hidden = false;
+            if (!config.hexoPath || !config.photoDir) {
+                photoPath.style.display = 'none';
+                photoGrid.innerHTML = '<div style="flex:1;display:flex;align-items:center;justify-content:center;font-size:14px;color:#667085;">请在设置中配置 photosDir</div>';
+                photoGrid.style.display = 'flex';
+                photoStatus.style.display = 'none';
+                document.querySelector('.overlay-footer').style.display = 'none';
+                return;
             }
         } catch {}
-    }
+        loadPhotos();
+    })();
 })();

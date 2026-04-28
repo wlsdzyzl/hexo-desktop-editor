@@ -243,7 +243,11 @@
 
     // ── Init shared features ─────────────────────────────────────
 
-    document.addEventListener('DOMContentLoaded', () => {
+    function whenReady(fn) {
+        if (document.readyState !== 'loading') fn();
+        else document.addEventListener('DOMContentLoaded', fn);
+    }
+    whenReady(() => {
         // Author links
         document.addEventListener('click', e => {
             const link = e.target.closest('.js-author-link');

@@ -42,16 +42,6 @@
         settingsPath: document.getElementById('settingsPath'),
     };
 
-    // ── Feature buttons ──────────────────────────────────────────
-
-    async function initFeatureButtons() {
-        try {
-            const config = await readConfig();
-            if (config.photoDir) E.photosBtn.hidden = false;
-            if (config.aboutDir) E.aboutBtn.hidden = false;
-        } catch {}
-    }
-
     // ── Settings ─────────────────────────────────────────────────
 
     async function openSettings() {
@@ -158,8 +148,13 @@
             postsDir = result.postsDir || '';
             if (!postsDir) {
                 selectedId = null; posts = [];
-                renderSidebarMsg('初次使用请设置您的blog路径');
-                clearEditor('请点击顶栏「设置」按钮，填写 hexoPath 后保存。');
+                E.sidebar.style.display = 'none';
+                document.getElementById('mainResizer').style.display = 'none';
+                document.querySelector('.editor-title').style.display = 'none';
+                document.querySelector('.editor').style.display = 'none';
+                document.querySelector('.footer').style.display = 'none';
+                E.postPath.style.cssText = 'flex:1;display:flex;align-items:center;justify-content:center;font-size:14px;color:#667085;';
+                E.postPath.textContent = '请在设置中配置 hexoPath';
                 return;
             }
             posts = result.posts.map(p => ({ ...p, id: p.relativePath, content: null, dirty: false, isNew: false }));
@@ -443,7 +438,6 @@
 
     // ── Init ─────────────────────────────────────────────────────
 
-    initFeatureButtons();
     renderSidebarMsg('正在读取文章...');
     clearEditor('正在读取 Hexo 文章...');
     loadPostsFromDisk();

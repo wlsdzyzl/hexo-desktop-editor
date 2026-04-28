@@ -125,8 +125,10 @@
             else if (ipc && ipc.invoke) doc = await ipc.invoke('read-about-file');
             else throw new Error('无法读取关于页面');
             if (!doc.filePath) {
-                pathDisplay.textContent = '请在设置中配置 hexoPath 和 aboutDir';
-                textarea.value = '';
+                pathDisplay.textContent = '请在设置中配置 aboutDir';
+                pathDisplay.style.cssText = 'flex:1;display:flex;align-items:center;justify-content:center;font-size:14px;color:#667085;';
+                document.querySelector('.about-editor').style.display = 'none';
+                document.querySelector('.overlay-footer').style.display = 'none';
             } else {
                 textarea.value = doc.content || '';
                 pathDisplay.textContent = doc.filePath;
@@ -175,16 +177,17 @@
     });
 
     // Init
-    initFeatureButtons();
-    loadAbout();
-
-    async function initFeatureButtons() {
+    (async () => {
         try {
             const config = await readConfig();
-            if (config.photoDir) {
-                const btn = document.getElementById('photosBtn');
-                if (btn) btn.hidden = false;
+            if (!config.hexoPath || !config.aboutDir) {
+                pathDisplay.textContent = '请在设置中配置 aboutDir';
+                pathDisplay.style.cssText = 'flex:1;display:flex;align-items:center;justify-content:center;font-size:14px;color:#667085;';
+                document.querySelector('.about-editor').style.display = 'none';
+                document.querySelector('.overlay-footer').style.display = 'none';
+                return;
             }
         } catch {}
-    }
+        loadAbout();
+    })();
 })();
