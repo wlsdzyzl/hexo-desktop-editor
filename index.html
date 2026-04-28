@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hexo Desktop Editor</title>
+    <link rel="stylesheet" href="css/shared.css">
+    <style>
+        .main {
+            display: flex; flex: 1; min-height: 0; overflow: hidden;
+            --sidebar-width: 260px;
+        }
+        .sidebar {
+            flex: 0 0 var(--sidebar-width); width: var(--sidebar-width);
+            min-width: 180px; padding: 12px; overflow: auto; background: #fff;
+        }
+        .sidebar__header {
+            display: flex; align-items: center; justify-content: space-between;
+            margin-bottom: 8px;
+        }
+        .sidebar__heading { margin: 0; font-size: 14px; color: #5f6368; }
+        .sidebar__new-btn {
+            width: 100%; padding: 6px 0; font-weight: 600;
+            color: #fff; cursor: pointer; background: #5b7a9e;
+            border: none; border-radius: 4px;
+        }
+        .sidebar__new-btn:hover { background: #4a6787; }
+        .post-list { display: grid; gap: 6px; padding: 0; margin: 0; list-style: none; }
+        .post-list__item {
+            display: block; width: 100%; padding: 9px 10px; overflow: hidden;
+            color: #202124; text-overflow: ellipsis; white-space: nowrap;
+            cursor: pointer; background: #f7f9fc;
+            border: 1px solid #eef1f5; border-radius: 6px;
+        }
+        .post-list__item:hover { background: #eef5ff; border-color: #dce9ff; }
+        .post-list__item.active { font-weight: 600; background: #e8f1ff; border-color: #cfe0ff; }
+        .editor-area {
+            display: flex; flex: 1 1 auto; flex-direction: column;
+            min-width: 0; padding: 12px; background: #fff;
+        }
+        .post-path { padding: 4px 0; overflow: hidden; font-size: 12px; color: #667085; text-overflow: ellipsis; white-space: nowrap; }
+        .editor-title { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+        .editor-title input {
+            flex: 1; min-width: 0; padding: 8px 12px; font-size: 16px;
+            color: #202124; border: 1px solid #dfe3e8; border-radius: 6px; outline: none;
+        }
+        .editor-title input:focus { border-color: #4c8dff; }
+        .editor {
+            display: flex; flex: 1; gap: 0; min-height: 0;
+            --markdown-width: 50%;
+        }
+        .markdown { display: flex; flex: 0 0 var(--markdown-width); min-width: 0; }
+        .ai-hint {
+            position: absolute; bottom: 8px; right: 12px;
+            font-size: 12px; color: #c0c4cc; cursor: pointer; user-select: none;
+            pointer-events: auto; z-index: 5;
+        }
+        .ai-hint[hidden] { display: none; }
+        .ai-hint:hover { color: #9ca3af; }
+        .ai-popup {
+            position: absolute; z-index: 10;
+            display: flex; align-items: center; gap: 6px;
+            padding: 8px 10px;
+            background: #fff;
+            border: 1px solid #4c8dff;
+            border-radius: 6px;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+            min-width: 320px;
+        }
+        .ai-popup[hidden] { display: none !important; }
+        .ai-popup input {
+            flex: 1; min-width: 0;
+            padding: 5px 8px; font-size: 13px;
+            border: none; outline: none;
+        }
+        .ai-popup input::placeholder { color: #9ca3af; }
+        .ai-popup .ai-status { font-size: 12px; color: #2563eb; white-space: nowrap; }
+        .ai-popup button {
+            flex-shrink: 0; width: 26px; height: 26px; padding: 0;
+            font-size: 14px; line-height: 26px;
+            color: #fff; cursor: pointer; text-align: center;
+            background: #5b7a9e; border: none; border-radius: 50%;
+        }
+        .ai-popup button:hover { background: #4a6787; }
+        .ai-popup button:disabled { opacity: 0.5; cursor: default; }
+        .footer { display: flex; gap: 8px; margin-top: 8px; }
+        .settings-overlay {
+            position: fixed; inset: 0; display: grid; place-items: center;
+            padding: 24px; background: rgba(15,23,42,0.38); z-index: 35;
+        }
+        .settings-overlay[hidden] { display: none; }
+        .settings-dialog {
+            width: min(640px, 100%); max-height: min(720px, calc(100vh - 48px));
+            display: flex; flex-direction: column; overflow: hidden;
+            color: #202124; background: #fff;
+            border: 1px solid #dfe3e8; border-radius: 8px;
+            box-shadow: 0 20px 54px rgba(15,23,42,0.22);
+        }
+        .settings-header, .settings-footer {
+            display: flex; align-items: center; gap: 8px;
+            padding: 12px 16px; border-bottom: 1px solid #edf0f3;
+        }
+        .settings-footer { justify-content: flex-end; border-top: 1px solid #edf0f3; border-bottom: 0; }
+        .settings-title { flex: 1; margin: 0; font-size: 16px; font-weight: 700; }
+        .settings-close {
+            width: 32px; height: 32px; color: #202124; cursor: pointer;
+            background: #f6f8fa; border: 1px solid #dfe3e8; border-radius: 6px;
+        }
+        .settings-body { padding: 16px; overflow: auto; }
+        .settings-path { margin: 0 0 12px; font-size: 12px; color: #667085; word-break: break-all; }
+        .settings-form { display: grid; gap: 12px; }
+        .settings-row { display: grid; grid-template-columns: 150px minmax(0, 1fr); gap: 10px; align-items: center; }
+        .settings-row label { font-size: 13px; font-weight: 600; color: #334155; }
+        .settings-input { width: 100%; min-width: 0; padding: 8px 10px; color: #202124; background: #fff; border: 1px solid #dfe3e8; border-radius: 6px; }
+        textarea.settings-input { min-height: 96px; resize: vertical; font-family: Consolas, "Courier New", monospace; }
+        .settings-status { min-height: 18px; margin: 12px 0 0; font-size: 13px; color: #667085; }
+        .settings-status.error { color: #b42318; }
+        .settings-status.success { color: #047857; }
+    </style>
+</head>
+<body>
+
+<header class="toolbar">
+    <div class="toolbar__left">
+        <button class="toolbar__btn toolbar__btn--active">博客</button>
+        <button class="toolbar__btn" data-navigate="photos.html" id="photosBtn" hidden>相册</button>
+        <button class="toolbar__btn" data-navigate="about.html" id="aboutBtn" hidden>关于</button>
+        <button class="toolbar__btn" id="settingsBtn">设置</button>
+    </div>
+    <button class="toolbar__btn toolbar__btn--publish" id="publishBtn">发布</button>
+</header>
+
+<div class="app">
+    <main class="main">
+        <aside class="sidebar">
+            <div class="sidebar__header">
+                <button id="newBtn" class="sidebar__new-btn" type="button">新建文章</button>
+            </div>
+            <ul id="postList" class="post-list"></ul>
+        </aside>
+        <div id="mainResizer" class="resize-handle" role="separator" aria-label="调整文章列表宽度"></div>
+        <section class="editor-area" aria-label="文章编辑区">
+            <div id="postPath" class="post-path"></div>
+            <div class="editor-title">
+                <input id="postTitleInput" type="text" placeholder="源文件名">
+            </div>
+            <div class="editor">
+                <div class="markdown">
+                    <div class="markdown-editor">
+                        <pre id="markdownHighlight" class="markdown-highlight" aria-hidden="true"></pre>
+                        <textarea id="markdownInput" placeholder="在这里编写 Markdown..." spellcheck="false"></textarea>
+                        <span id="aiHint" class="ai-hint">按 Ctrl+I 进入 AI 写作</span>
+                        <div id="aiPopup" class="ai-popup" hidden>
+                            <input id="aiInput" type="text" placeholder="输入写作要求，Enter 发送...">
+                            <button id="aiSendBtn" title="发送">⬆</button>
+                            <span id="aiStatus" class="ai-status" hidden>生成中...</span>
+                        </div>
+                    </div>
+                </div>
+                <div id="editorResizer" class="resize-handle" role="separator" aria-label="调整编辑和预览宽度"></div>
+                <div id="preview" class="preview">Markdown 预览</div>
+            </div>
+            <div class="footer">
+                <button id="saveBtn" class="small-btn">保存</button>
+                <button id="deleteBtn" class="small-btn danger-btn">删除</button>
+                <button id="openFolderBtn" class="small-btn">打开文件夹</button>
+            </div>
+        </section>
+    </main>
+    <footer class="app-footer">
+        <a class="app-footer__link js-author-link" href="#">wlsdzyzl © 2026</a>
+    </footer>
+</div>
+
+<!-- 发布日志弹窗 -->
+<section id="publishOverlay" class="publish-overlay" hidden>
+    <pre id="publishLog" class="publish-log"></pre>
+    <p id="publishStatus" class="publish-status">正在发布...</p>
+    <div class="overlay-footer">
+        <button id="publishCloseBtn" class="small-btn" disabled>关闭</button>
+        <a class="app-footer__link js-author-link" href="#">wlsdzyzl © 2026</a>
+    </div>
+</section>
+
+<!-- 设置弹窗 -->
+<div id="settingsOverlay" class="settings-overlay" hidden>
+    <section class="settings-dialog" role="dialog" aria-modal="true">
+        <header class="settings-header">
+            <h2 class="settings-title">设置</h2>
+            <button id="settingsCloseBtn" class="settings-close" type="button">×</button>
+        </header>
+        <div class="settings-body">
+            <p id="settingsPath" class="settings-path"></p>
+            <form id="settingsForm" class="settings-form"></form>
+            <p id="settingsStatus" class="settings-status"></p>
+        </div>
+        <footer class="settings-footer">
+            <button id="settingsCancelBtn" class="small-btn" type="button">取消</button>
+            <button id="settingsSaveBtn" class="small-btn" type="button">保存</button>
+        </footer>
+    </section>
+</div>
+
+<script>
+    window.MathJax = { tex: { inlineMath: [['\\(','\\)'],['$','$']], displayMath: [['\\[','\\]'],['$$','$$']], processEscapes: true }, svg: { fontCache: 'global' }, startup: { typeset: false } };
+</script>
+<script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+<script src="js/shared.js"></script>
+<script src="js/blog.js"></script>
+</body>
+</html>

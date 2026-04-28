@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hexo Desktop Editor - 关于</title>
+    <link rel="stylesheet" href="css/shared.css">
+    <style>
+        .about-editor {
+            display: flex; flex: 1; min-height: 0; padding: 12px; gap: 0;
+            --about-markdown-width: 50%;
+        }
+        .about-markdown { flex: 0 0 var(--about-markdown-width); min-width: 0; display: flex; }
+        .about-markdown .markdown-editor { flex: 1; min-width: 0; }
+        .about-editor .preview { flex: 1 1 auto; min-width: 0; }
+        .settings-overlay {
+            position: fixed; inset: 0; display: grid; place-items: center;
+            padding: 24px; background: rgba(15,23,42,0.38); z-index: 20;
+        }
+        .settings-overlay[hidden] { display: none; }
+        .settings-dialog {
+            width: min(640px, 100%); max-height: min(720px, calc(100vh - 48px));
+            display: flex; flex-direction: column; overflow: hidden;
+            color: #202124; background: #fff;
+            border: 1px solid #dfe3e8; border-radius: 8px;
+            box-shadow: 0 20px 54px rgba(15,23,42,0.22);
+        }
+        .settings-header, .settings-footer {
+            display: flex; align-items: center; gap: 8px;
+            padding: 12px 16px; border-bottom: 1px solid #edf0f3;
+        }
+        .settings-footer { justify-content: flex-end; border-top: 1px solid #edf0f3; border-bottom: 0; }
+        .settings-title { flex: 1; margin: 0; font-size: 16px; font-weight: 700; }
+        .settings-close {
+            width: 32px; height: 32px; color: #202124; cursor: pointer;
+            background: #f6f8fa; border: 1px solid #dfe3e8; border-radius: 6px;
+        }
+        .settings-body { padding: 16px; overflow: auto; }
+        .settings-path { margin: 0 0 12px; font-size: 12px; color: #667085; word-break: break-all; }
+        .settings-form { display: grid; gap: 12px; }
+        .settings-row { display: grid; grid-template-columns: 150px minmax(0, 1fr); gap: 10px; align-items: center; }
+        .settings-row label { font-size: 13px; font-weight: 600; color: #334155; }
+        .settings-input { width: 100%; min-width: 0; padding: 8px 10px; color: #202124; background: #fff; border: 1px solid #dfe3e8; border-radius: 6px; }
+        textarea.settings-input { min-height: 96px; resize: vertical; font-family: Consolas, "Courier New", monospace; }
+        .settings-status { min-height: 18px; margin: 12px 0 0; font-size: 13px; color: #667085; }
+        .settings-status.error { color: #b42318; }
+        .settings-status.success { color: #047857; }
+    </style>
+</head>
+<body>
+
+<header class="toolbar">
+    <div class="toolbar__left">
+        <button class="toolbar__btn" data-navigate="index.html">博客</button>
+        <button class="toolbar__btn" data-navigate="photos.html" id="photosBtn" hidden>相册</button>
+        <button class="toolbar__btn toolbar__btn--active">关于</button>
+        <button class="toolbar__btn" id="settingsBtn">设置</button>
+    </div>
+    <button class="toolbar__btn toolbar__btn--publish" id="publishBtn">发布</button>
+</header>
+
+<div class="app">
+    <div id="aboutPath" class="path-display" style="padding:4px 16px;"></div>
+    <div class="about-editor">
+        <div class="about-markdown">
+            <div class="markdown-editor">
+                <pre id="aboutHighlight" class="markdown-highlight" aria-hidden="true"></pre>
+                <textarea id="aboutTextarea" placeholder="在这里编写关于页面..." spellcheck="false"></textarea>
+            </div>
+        </div>
+        <div id="aboutResizer" class="resize-handle" role="separator" aria-label="调整编辑和预览宽度"></div>
+        <div id="aboutPreview" class="preview">Markdown 预览</div>
+    </div>
+    <div class="overlay-footer">
+        <button id="aboutSaveBtn" class="small-btn">保存</button>
+    </div>
+    <footer class="app-footer">
+        <a class="app-footer__link js-author-link" href="#">wlsdzyzl © 2026</a>
+    </footer>
+</div>
+
+<!-- 发布日志弹窗 -->
+<section id="publishOverlay" class="publish-overlay" hidden>
+    <pre id="publishLog" class="publish-log"></pre>
+    <p id="publishStatus" class="publish-status">正在发布...</p>
+    <div class="overlay-footer">
+        <button id="publishCloseBtn" class="small-btn" disabled>关闭</button>
+        <a class="app-footer__link js-author-link" href="#">wlsdzyzl © 2026</a>
+    </div>
+</section>
+
+<!-- 设置弹窗 -->
+<div id="settingsOverlay" class="settings-overlay" hidden>
+    <section class="settings-dialog" role="dialog" aria-modal="true">
+        <header class="settings-header">
+            <h2 class="settings-title">设置</h2>
+            <button id="settingsCloseBtn" class="settings-close" type="button">×</button>
+        </header>
+        <div class="settings-body">
+            <p id="settingsPath" class="settings-path"></p>
+            <form id="settingsForm" class="settings-form"></form>
+            <p id="settingsStatus" class="settings-status"></p>
+        </div>
+        <footer class="settings-footer">
+            <button id="settingsCancelBtn" class="small-btn" type="button">取消</button>
+            <button id="settingsSaveBtn" class="small-btn" type="button">保存</button>
+        </footer>
+    </section>
+</div>
+
+<script>
+    window.MathJax = { tex: { inlineMath: [['\\(','\\)'],['$','$']], displayMath: [['\\[','\\]'],['$$','$$']], processEscapes: true }, svg: { fontCache: 'global' }, startup: { typeset: false } };
+</script>
+<script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+<script src="js/shared.js"></script>
+<script src="js/about.js"></script>
+</body>
+</html>
