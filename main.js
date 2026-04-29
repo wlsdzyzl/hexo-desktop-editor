@@ -437,60 +437,100 @@ app.whenReady().then(() => {
 
     ipcMain.on('save-post', (_event, post) => savePostFile(post));
 
-    ipcMain.on('publish-post', (event) => {
+    function runCommand(command, args, cwd, log) {
+        return new Promise((resolve, reject) => {
+            const child = spawn(command, args, { cwd, env: { ...process.env }, shell: true });
+            child.stdout.on('data', d => log(d.toString()));
+            child.stderr.on('data', d => log(d.toString()));
+            child.on('close', code => (code === 0 ? resolve() : reject(new Error(`${command} 退出码：${code}`))));
+            child.on('error', err => reject(err));
+        });
+    }
+
+    ipcMain.on('publish-post', async (event) => {
         const win = BrowserWindow.fromWebContents(event.sender);
         if (!win) return;
+        const log = (msg) => win.webContents.send('publish-log', msg);
 
         let config;
         try {
             config = readConfigFile();
         } catch (err) {
-            win.webContents.send('publish-log', `读取配置失败：${err.message}\n`);
+            log(`读取配置失败：${err.message}\n`);
             win.webContents.send('publish-done', { success: false, message: `读取配置失败：${err.message}` });
             return;
         }
 
         if (!config.hexoPath) {
-            win.webContents.send('publish-log', '配置中缺少 hexoPath\n');
+            log('配置中缺少 hexoPath\n');
             win.webContents.send('publish-done', { success: false, message: '配置中缺少 hexoPath' });
             return;
         }
 
-        const args = [path.join(__dirname, 'js', 'publish.js'), config.hexoPath];
-        if (config.gitRepo) args.push('--public-remote', config.gitRepo);
-        if (config.publicBrance) args.push('--public-branch', config.publicBrance);
-        if (config.sourceBrance) args.push('--source-branch', config.sourceBrance);
-        if (config.commitMessage) args.push('--commit-message', config.commitMessage);
+        const hexoDir = path.resolve(config.hexoPath);
+        const publicDir = path.join(hexoDir, 'public');
+        const commitMsg = config.commitMessage || `Update blog ${new Date().toISOString()}`;
+        const sourceBranch = config.sourceBrance || 'main';
+        const publicBranch = config.publicBrance || 'gh-pages';
 
-        win.webContents.send('publish-log', `$ node publish.js ${args.slice(1).map(a => `"${a}"`).join(' ')}\n\n`);
-
-        const child = spawn('node', args, {
-            cwd: __dirname,
-            env: { ...process.env },
-        });
-
-        child.stdout.on('data', (data) => {
-            win.webContents.send('publish-log', data.toString());
-        });
-
-        child.stderr.on('data', (data) => {
-            win.webContents.send('publish-log', data.toString());
-        });
-
-        child.on('close', (code) => {
-            if (code === 0) {
-                win.webContents.send('publish-log', '\n--- 发布成功 ---\n');
-                win.webContents.send('publish-done', { success: true, message: '发布成功' });
-            } else {
-                win.webContents.send('publish-log', `\n--- 发布失败（退出码：${code}）---\n`);
-                win.webContents.send('publish-done', { success: false, message: `发布失败，退出码：${code}` });
+        async function safe(label, fn) {
+            try {
+                log(`\n[${label}] 开始...\n`);
+                await fn();
+                log(`[${label}] 完成\n`);
+            } catch (err) {
+                log(`[${label}] 失败：${err.message}\n`);
+                throw err;
             }
-        });
+        }
 
-        child.on('error', (err) => {
-            win.webContents.send('publish-log', `\n启动发布脚本失败：${err.message}\n`);
-            win.webContents.send('publish-done', { success: false, message: `启动发布脚本失败：${err.message}` });
-        });
+        try {
+            log('========== 发布开始 ==========\n');
+            log(`Hexo 目录：${hexoDir}\n\n`);
+
+            // 1. hexo generate
+            await safe('hexo generate', () => runCommand('npx', ['--yes', 'hexo', 'generate'], hexoDir, log));
+
+            // 2. push source repo
+            if (fs.existsSync(path.join(hexoDir, '.git'))) {
+                await safe('推送源码', async () => {
+                    await runCommand('git', ['add', '-A'], hexoDir, log);
+                    await runCommand('git', ['commit', '-m', commitMsg], hexoDir, log).catch(() => log('(无变更或提交跳过)\n'));
+                    await runCommand('git', ['push', 'origin', sourceBranch], hexoDir, log);
+                });
+            } else {
+                log('[推送源码] 跳过：hexo 目录不是 git 仓库\n');
+            }
+
+            // 3. push public/
+            if (!fs.existsSync(publicDir) || !fs.statSync(publicDir).isDirectory()) {
+                throw new Error(`public 目录不存在：${publicDir}`);
+            }
+
+            await safe('推送静态页面', async () => {
+                const publicIsGit = fs.existsSync(path.join(publicDir, '.git'));
+                if (publicIsGit) {
+                    await runCommand('git', ['add', '-A'], publicDir, log);
+                    await runCommand('git', ['commit', '-m', commitMsg], publicDir, log).catch(() => log('(无变更或提交跳过)\n'));
+                    await runCommand('git', ['push', 'origin', publicBranch, '--force'], publicDir, log);
+                } else if (config.gitRepo) {
+                    await runCommand('git', ['init'], publicDir, log);
+                    await runCommand('git', ['checkout', '-b', publicBranch], publicDir, log);
+                    await runCommand('git', ['remote', 'add', 'origin', config.gitRepo], publicDir, log);
+                    await runCommand('git', ['add', '-A'], publicDir, log);
+                    await runCommand('git', ['commit', '-m', commitMsg], publicDir, log);
+                    await runCommand('git', ['push', '-u', 'origin', publicBranch, '--force'], publicDir, log);
+                } else {
+                    throw new Error('public 目录不是 git 仓库，请在配置中填写 gitRepo');
+                }
+            });
+
+            log('\n========== 发布成功 ==========\n');
+            win.webContents.send('publish-done', { success: true, message: '发布成功' });
+        } catch (err) {
+            log(`\n========== 发布失败：${err.message} ==========\n`);
+            win.webContents.send('publish-done', { success: false, message: `发布失败：${err.message}` });
+        }
     });
 
     ipcMain.on('open-settings', () => {

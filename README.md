@@ -4,6 +4,8 @@
 
 基于 Electron 的本地 Hexo 博客桌面管理工具。提供 Markdown 编辑器（实时预览 + AI 写作）、相册管理器、关于页面编辑和一键发布功能，所有操作直接作用于本地 Hexo 项目文件系统。
 
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
 ## 功能
 
 - **博客编辑** — Markdown 编辑器（语法高亮 + 实时预览），支持 MathJax 数学公式
@@ -15,23 +17,31 @@
 
 ## 环境要求
 
-你需要已经有一个自己的hexo博客。
+需要本地已安装 [Hexo](https://hexo.io/) 博客项目。仅需配置博客路径，编辑器即直接操作 `source/_posts` 等目录下的 Markdown 文件。
 
 ## 安装
 
-windows可以直接下载安装程序安装。
+Windows 可直接下载安装程序（NSIS 安装包）。
 
-如果想从源码开始，可以：
+从源码构建：
+
 ```bash
-git clone
-cd hexo-desktop-editor
+git clone https://github.com/wlsdzyzl/hexo-desktop.git
+cd hexo-desktop
 npm install
 npm start
 ```
 
+## 构建
+
+```bash
+npm run build          # 构建当前平台
+npm run build:win      # 构建 Windows NSIS 安装包
+```
+
 ## 配置
 
-编辑 `config.json`：
+编辑 `config.json`（打包版本位于 `%APPDATA%/hexo-desktop/config.json`）：
 
 ```json
 {
@@ -57,19 +67,15 @@ npm start
 | `commitMessage` | 发布提交信息 | ❌ |
 | `deepseekAPIKey` | DeepSeek API 密钥，不填则无法使用 AI 功能 | ❌ |
 
-## 启动
-
-```bash
-npm start
-```
-
 ## 使用指南
 
 ### 博客编辑
 
 - 左侧文章列表 → 点击切换文章
 - 中间 Markdown 编辑器 → 右侧实时预览
-- `Ctrl+S` 保存，支持标题变更自动重命名
+- 拖拽中间分隔条可调整编辑/预览宽度
+- `Ctrl+S` 保存，标题变更自动重命名文件
+- 支持新建和删除文章
 
 ### AI 写作
 
@@ -81,6 +87,7 @@ npm start
 ### 相册
 
 - 顶栏点击"相册" → 上传 / 刷新图片
+- 支持子目录遍历、图片预览
 - 点击文件名 → 内联重命名
 - 点击 ❌ → 二次确认后删除
 
@@ -92,42 +99,50 @@ npm start
 ### 发布
 
 - 顶栏点击绿色"发布"按钮
-- 自动执行 `hexo generate` → Git 提交源码 → 强制推送静态页面
+- 自动执行 `hexo generate` → Git 提交源码 → 推送静态页面到 `gh-pages` 分支
 - 终端风格黑色窗口实时显示日志
 
 ### 设置
 
-- 修改配置后点击"保存" → 自动返回首页刷新
+- 点击"设置"按钮 → 图形化编辑所有配置项
+- 点击"保存"后即时生效并刷新页面
 
 ## 项目结构
 
 ```
 hexo-desktop/
 ├── css/
-│   └── shared.css          # 共享样式
+│   └── shared.css            # 共享样式
 ├── js/
-│   ├── shared.js           # 共享逻辑（导航、发布、Markdown 渲染）
-│   ├── blog.js             # 博客编辑页
-│   ├── photos.js           # 相册页
-│   ├── about.js            # 关于页
-│   └── publish.js          # 发布脚本（独立 CLI）
-├── index.html              # 博客编辑页
-├── photos.html             # 相册页
-├── about.html              # 关于页
-├── main.js                 # Electron 主进程
-├── preload.js              # 上下文桥接
-├── config.json             # 用户配置
+│   ├── preload.js            # 上下文桥接（contextBridge）
+│   ├── shared.js             # 共享逻辑（导航、发布、Markdown 渲染）
+│   ├── blog.js               # 博客编辑页
+│   ├── photos.js             # 相册页
+│   ├── about.js              # 关于页
+│   └── publish.js            # 发布脚本（hexo g + git push）
+├── index.html                # 博客编辑页
+├── photos.html               # 相册页
+├── about.html                # 关于页
+├── main.js                   # Electron 主进程
+├── config.json               # 用户配置
+├── icon.ico                  # 应用图标
 └── package.json
 ```
 
 ## 技术栈
 
-- Electron（多进程架构，`contextIsolation: true`）
-- 原生 JS（无框架），透明 textarea + pre 叠层语法高亮
-- 手写 Markdown → HTML 渲染器
-- MathJax 3（LaTeX 数学公式）
-- DeepSeek Chat API（AI 写作）
+- **Electron 41** — 多进程桌面架构，`contextIsolation: true` 安全隔离
+- **原生 JS** — 无前端框架，透明 textarea + pre 叠层语法高亮
+- **手写 Markdown 渲染器** — 轻量、无外部依赖，位于 `js/shared.js`
+- **MathJax 3** — CDN 加载，支持 LaTeX 数学公式渲染
+- **DeepSeek Chat API** — AI 写作辅助，通过主进程代理请求
+- **electron-builder** — 跨平台打包（NSIS / DMG / AppImage）
+- **simple-git** — 发布流程中的 Git 操作
 
 ## 许可
 
-MIT
+本项目基于 [MIT License](https://opensource.org/licenses/MIT) 开源。
+
+MIT 许可证授予任何人在不受限制的情况下使用、复制、修改、合并、发布、分发、再许可和/或销售本软件的副本，前提是在所有副本或实质性部分中包含版权声明和本许可声明。软件按"原样"提供，不提供任何形式的明示或暗示担保。
+
+> Copyright (c) 2026 wlsdzyzl
