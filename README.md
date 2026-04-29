@@ -2,7 +2,7 @@
 
 ![](image.png)
 
-基于 Electron 的本地 Hexo 博客桌面管理工具。提供 Markdown 编辑器（实时预览 + AI 写作）、相册管理器、关于页面编辑和一键发布功能，所有操作直接作用于本地 Hexo 项目文件系统。
+基于 Electron 的本地 Hexo 博客桌面编辑工具。提供 Markdown 编辑器（实时预览 + AI 写作）、相册管理器、关于页面编辑和发布功能，无需自己去打开blog目录、新建或者选择文件以及使用命令行来进行编辑发布等操作。所有功能直接作用于本地 Hexo 项目文件系统。
 
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
@@ -17,7 +17,7 @@
 
 ## 环境要求
 
-需要本地已安装 [Hexo](https://hexo.io/) 博客项目。仅需配置博客路径，编辑器即直接操作 `source/_posts` 等目录下的 Markdown 文件。
+本项目面对那些之前已经部署并且使用过hexo blog的同学，需要本地已安装 [Hexo](https://hexo.io/) 博客。仅需配置博客路径，编辑器即直接操作 `source/_posts` 等目录下的 Markdown 文件。
 
 ## 安装
 
@@ -63,7 +63,7 @@ npm run build:win      # 构建 Windows NSIS 安装包
 | `sourceBrance` | 源码分支名 | ❌ |
 | `publicBrance` | 静态页面分支名 | ❌ |
 | `commitMessage` | 发布提交信息 | ❌ |
-| `deepseekAPIKey` | DeepSeek API 密钥，不填则无法使用 AI 功能 | ❌ |
+| `deepseekAPIKey` | DeepSeek API 密钥，不填则无法使用 AI writing 功能 | ❌ |
 
 ## 使用指南
 
@@ -86,7 +86,7 @@ npm run build:win      # 构建 Windows NSIS 安装包
 
 - 顶栏点击"相册" → 上传 / 刷新图片
 - 支持子目录遍历、图片预览
-- 点击文件名 → 内联重命名
+- 点击文件名 → 重命名
 - 点击 ❌ → 二次确认后删除
 
 ### 关于页面
@@ -98,7 +98,7 @@ npm run build:win      # 构建 Windows NSIS 安装包
 
 - 顶栏点击绿色"发布"按钮
 - 自动执行 `hexo generate` → Git 提交源码 → 自动检测 Git Remote → 推送静态页面到 `gh-pages` 分支
-- 终端风格黑色窗口实时显示日志
+- 终端风格窗口实时显示日志
 
 ### 设置
 
