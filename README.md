@@ -58,8 +58,8 @@ npm run build:win      # 构建 Windows NSIS 安装包
 | 字段 | 说明 | 必填 |
 |------|------|------|
 | `hexoPath` | Hexo 博客项目本地路径 | ✅ |
-| `photoDir` | 相册目录（相对于 `source/`），不填则隐藏相册按钮 | ❌ |
-| `aboutDir` | 关于目录（相对于 `source/`），不填则隐藏关于按钮 | ❌ |
+| `photoDir` | 相册目录（相对于 `source/`），不填则没有相册功能 | ❌ |
+| `aboutDir` | 关于目录（相对于 `source/`），不填则没有编辑主页功能 | ❌ |
 | `sourceBrance` | 源码分支名 | ❌ |
 | `publicBrance` | 静态页面分支名 | ❌ |
 | `commitMessage` | 发布提交信息 | ❌ |
