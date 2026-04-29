@@ -30,7 +30,7 @@ function createWindow() {
 
 function readConfigFile() {
     if (!fs.existsSync(getConfigPath())) {
-        const defaults = { hexoPath: '', photoDir: '', aboutDir: '', gitRepo: '', sourceBrance: 'main', publicBrance: 'gh-pages', commitMessage: 'Update blog', deepseekAPIKey: '' };
+        const defaults = { hexoPath: '', photoDir: '', aboutDir: '', sourceBrance: 'main', publicBrance: 'gh-pages', commitMessage: 'Update blog', deepseekAPIKey: '' };
         fs.writeFileSync(getConfigPath(), JSON.stringify(defaults, null, 2) + '\n', 'utf8');
         return defaults;
     }
@@ -365,6 +365,15 @@ app.whenReady().then(() => {
         writeConfigFile(config);
         return { ok: true };
     });
+    ipcMain.handle('get-hexo-remote', async () => {
+        const config = readConfigFile();
+        if (!config.hexoPath) return '';
+        try {
+            return await execCapture('git', ['remote', 'get-url', 'origin'], path.resolve(config.hexoPath));
+        } catch {
+            return '';
+        }
+    });
     ipcMain.handle('get-posts-dir', () => getPostsDir());
     ipcMain.handle('list-posts', () => listPostFiles());
     ipcMain.handle('read-post', (_event, relativePath) => readPostFile(relativePath));
@@ -437,12 +446,23 @@ app.whenReady().then(() => {
 
     ipcMain.on('save-post', (_event, post) => savePostFile(post));
 
-    function runCommand(command, args, cwd, log) {
+    function runCommand(command, args, cwd, log, useShell = false) {
         return new Promise((resolve, reject) => {
-            const child = spawn(command, args, { cwd, env: { ...process.env }, shell: true });
+            const child = spawn(command, args, { cwd, env: { ...process.env }, shell: useShell });
             child.stdout.on('data', d => log(d.toString()));
             child.stderr.on('data', d => log(d.toString()));
             child.on('close', code => (code === 0 ? resolve() : reject(new Error(`${command} 退出码：${code}`))));
+            child.on('error', err => reject(err));
+        });
+    }
+
+    function execCapture(command, args, cwd) {
+        return new Promise((resolve, reject) => {
+            const child = spawn(command, args, { cwd, env: { ...process.env } });
+            let stdout = '', stderr = '';
+            child.stdout.on('data', d => { stdout += d.toString(); });
+            child.stderr.on('data', d => { stderr += d.toString(); });
+            child.on('close', code => (code === 0 ? resolve(stdout.trim()) : reject(new Error(stderr || `exit code ${code}`))));
             child.on('error', err => reject(err));
         });
     }
@@ -489,13 +509,13 @@ app.whenReady().then(() => {
             log(`Hexo 目录：${hexoDir}\n\n`);
 
             // 1. hexo generate
-            await safe('hexo generate', () => runCommand('npx', ['--yes', 'hexo', 'generate'], hexoDir, log));
+            await safe('hexo generate', () => runCommand('npx', ['--yes', 'hexo', 'generate'], hexoDir, log, true));
 
             // 2. push source repo
             if (fs.existsSync(path.join(hexoDir, '.git'))) {
                 await safe('推送源码', async () => {
                     await runCommand('git', ['add', '-A'], hexoDir, log);
-                    await runCommand('git', ['commit', '-m', commitMsg], hexoDir, log).catch(() => log('(无变更或提交跳过)\n'));
+                    await runCommand('git', ['commit', '-m', commitMsg], hexoDir, log).catch(err => log(`(提交跳过: ${err.message})\n`));
                     await runCommand('git', ['push', 'origin', sourceBranch], hexoDir, log);
                 });
             } else {
@@ -511,17 +531,26 @@ app.whenReady().then(() => {
                 const publicIsGit = fs.existsSync(path.join(publicDir, '.git'));
                 if (publicIsGit) {
                     await runCommand('git', ['add', '-A'], publicDir, log);
-                    await runCommand('git', ['commit', '-m', commitMsg], publicDir, log).catch(() => log('(无变更或提交跳过)\n'));
+                    await runCommand('git', ['commit', '-m', commitMsg], publicDir, log).catch(err => log(`(提交跳过: ${err.message})\n`));
                     await runCommand('git', ['push', 'origin', publicBranch, '--force'], publicDir, log);
-                } else if (config.gitRepo) {
+                } else {
+                    // Auto-detect remote from hexoDir
+                    let remoteUrl;
+                    try {
+                        remoteUrl = await execCapture('git', ['remote', 'get-url', 'origin'], hexoDir);
+                    } catch {
+                        remoteUrl = '';
+                    }
+                    if (!remoteUrl) {
+                        throw new Error('无法自动检测 git remote，请在 Hexo 目录中配置 git remote origin');
+                    }
+                    log(`检测到远程仓库：${remoteUrl}\n`);
                     await runCommand('git', ['init'], publicDir, log);
                     await runCommand('git', ['checkout', '-b', publicBranch], publicDir, log);
-                    await runCommand('git', ['remote', 'add', 'origin', config.gitRepo], publicDir, log);
+                    await runCommand('git', ['remote', 'add', 'origin', remoteUrl], publicDir, log);
                     await runCommand('git', ['add', '-A'], publicDir, log);
                     await runCommand('git', ['commit', '-m', commitMsg], publicDir, log);
                     await runCommand('git', ['push', '-u', 'origin', publicBranch, '--force'], publicDir, log);
-                } else {
-                    throw new Error('public 目录不是 git 仓库，请在配置中填写 gitRepo');
                 }
             });
 

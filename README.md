@@ -48,7 +48,6 @@ npm run build:win      # 构建 Windows NSIS 安装包
   "hexoPath": "E:/project/my-blog",
   "photoDir": "photos",
   "aboutDir": "about",
-  "gitRepo": "git@github.com:username/username.github.io.git",
   "sourceBrance": "main",
   "publicBrance": "gh-pages",
   "commitMessage": "Update blog",
@@ -61,7 +60,6 @@ npm run build:win      # 构建 Windows NSIS 安装包
 | `hexoPath` | Hexo 博客项目本地路径 | ✅ |
 | `photoDir` | 相册目录（相对于 `source/`），不填则隐藏相册按钮 | ❌ |
 | `aboutDir` | 关于目录（相对于 `source/`），不填则隐藏关于按钮 | ❌ |
-| `gitRepo` | GitHub Pages 仓库地址 | 发布时需要 |
 | `sourceBrance` | 源码分支名 | ❌ |
 | `publicBrance` | 静态页面分支名 | ❌ |
 | `commitMessage` | 发布提交信息 | ❌ |
@@ -99,7 +97,7 @@ npm run build:win      # 构建 Windows NSIS 安装包
 ### 发布
 
 - 顶栏点击绿色"发布"按钮
-- 自动执行 `hexo generate` → Git 提交源码 → 推送静态页面到 `gh-pages` 分支
+- 自动执行 `hexo generate` → Git 提交源码 → 自动检测 Git Remote → 推送静态页面到 `gh-pages` 分支
 - 终端风格黑色窗口实时显示日志
 
 ### 设置

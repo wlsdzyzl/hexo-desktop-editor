@@ -175,6 +175,14 @@ async function main() {
         await ensureDirExists(hexoDir);
 
         console.log('Hexo directory:', hexoDir);
+
+        // Check public-remote early so we fail fast before hexo generate
+        const publicDir = path.join(hexoDir, 'public');
+        const publicIsGit = fs.existsSync(path.join(publicDir, '.git'));
+        if (!publicIsGit && !opts.publicRemote) {
+            throw new Error('请通过 --public-remote 提供远程仓库地址');
+        }
+
         console.log('Generating site with hexo (using npx)...');
 
         // Run hexo generate using npx to ensure local or global installation works
@@ -194,14 +202,12 @@ async function main() {
         }
 
         // Handle public directory
-        const publicDir = path.join(hexoDir, 'public');
         if (!fs.existsSync(publicDir) || !fs.statSync(publicDir).isDirectory()) {
             throw new Error(`public 目录不存在: ${publicDir}`);
         }
 
         console.log('Preparing to push generated files in public/ ...');
 
-        const publicIsGit = fs.existsSync(path.join(publicDir, '.git'));
         if (publicIsGit) {
             console.log('public/ already a git repo. Will commit & push.');
             const publicMsg = opts.commitMessage || `Site: update on ${new Date().toISOString()}`;

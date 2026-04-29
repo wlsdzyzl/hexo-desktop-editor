@@ -40,6 +40,7 @@
         settingsForm: document.getElementById('settingsForm'),
         settingsStatus: document.getElementById('settingsStatus'),
         settingsPath: document.getElementById('settingsPath'),
+        settingsRemote: document.getElementById('settingsRemote'),
     };
 
     // ── Settings ─────────────────────────────────────────────────
@@ -57,10 +58,20 @@
             E.settingsSaveBtn.disabled = false;
             E.settingsStatus.textContent = '修改后点击保存。';
             E.settingsPath.textContent = await resolveConfigPath();
+            const remote = await getHexoRemote();
+            E.settingsRemote.textContent = remote ? `Git Remote: ${remote}` : 'Git Remote: (未检测到)';
         } catch (err) {
             renderSettingsForm({});
             setSettingsStatus(`读取配置失败：${err.message}`, 'error');
         }
+    }
+
+    async function getHexoRemote() {
+        try {
+            if (bridge && bridge.getHexoRemote) return await bridge.getHexoRemote();
+            if (ipc && ipc.invoke) return await ipc.invoke('get-hexo-remote');
+        } catch { return ''; }
+        return '';
     }
 
     function closeSettings() { E.settingsOverlay.hidden = true; }
