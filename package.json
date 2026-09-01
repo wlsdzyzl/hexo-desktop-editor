@@ -50,9 +50,10 @@
       "icon": "icon.ico"
     },
     "portable": {
-      "artifactName": "${productName}-v${version}-${os}-${arch}-portable.${ext}"
+      "artifactName": "Hexo.Desktop.Editor.${version}.${ext}"
     },
     "nsis": {
+      "artifactName": "Hexo.Desktop.Editor.Setup.${version}.${ext}",
       "oneClick": false,
       "allowToChangeInstallationDirectory": true
     },
