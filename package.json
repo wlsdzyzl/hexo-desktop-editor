@@ -1,1 +1,83 @@
-{"description":"Hexo Desktop Editor - 基于 Electron 的本地 Hexo 博客管理客户端。","repository":{"type":"git","url":"https://github.com/wlsdzyzl/hexo-desktop.git"},"author":"wlsdzyzl","license":"MIT","name":"hexo-desktop","version":"1.0.0","main":"main.js","scripts":{"start":"electron .","build":"electron-builder","build:win":"electron-builder --win nsis"},"dependencies":{"simple-git":"^3.19.1"},"devDependencies":{"electron":"^41.3.0","electron-builder":"^25.1.8"},"build":{"productName":"Hexo Desktop Editor","appId":"com.wlsdzyzl.hexo-desktop","files":["main.js","preload.js","index.html","photos.html","about.html","css/**","js/**","node_modules/**","!config.json"],"win":{"target":"nsis","icon":"icon.ico"},"nsis":{"oneClick":false,"allowToChangeInstallationDirectory":true},"mac":{"target":"dmg"},"linux":{"target":"AppImage"}}}
+{
+  "name": "hexo-desktop",
+  "version": "1.1.0",
+  "description": "Hexo Desktop Editor - 基于 Electron 的本地 Hexo 博客管理客户端。",
+  "main": "main.js",
+  "author": "wlsdzyzl",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/wlsdzyzl/hexo-desktop.git"
+  },
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder",
+    "build:mac": "electron-builder --mac dmg --universal",
+    "build:mac:arm64": "electron-builder --mac dmg --arm64",
+    "build:mac:x64": "electron-builder --mac dmg --x64",
+    "build:win": "electron-builder --win nsis --x64",
+    "build:win:portable": "electron-builder --win portable --x64",
+    "build:win:arm64": "electron-builder --win nsis --arm64"
+  },
+  "dependencies": {
+    "mathjax": "^3.2.2"
+  },
+  "devDependencies": {
+    "electron": "^44.1.0",
+    "electron-builder": "^26.15.3"
+  },
+  "build": {
+    "productName": "Hexo Desktop Editor",
+    "appId": "com.wlsdzyzl.hexo-desktop",
+    "artifactName": "${productName}-v${version}-${os}-${arch}.${ext}",
+    "directories": {
+      "buildResources": "build",
+      "output": "dist"
+    },
+    "files": [
+      "main.js",
+      "index.html",
+      "photos.html",
+      "about.html",
+      "icon.ico",
+      "css/**",
+      "js/**",
+      "node_modules/mathjax/es5/**",
+      "!config.json"
+    ],
+    "win": {
+      "target": "nsis",
+      "icon": "icon.ico"
+    },
+    "portable": {
+      "artifactName": "${productName}-v${version}-${os}-${arch}-portable.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    },
+    "mac": {
+      "target": "dmg",
+      "icon": "build/icon.png",
+      "category": "public.app-category.productivity"
+    },
+    "dmg": {
+      "title": "${productName} v${version}",
+      "contents": [
+        {
+          "x": 130,
+          "y": 220
+        },
+        {
+          "x": 410,
+          "y": 220,
+          "type": "link",
+          "path": "/Applications"
+        }
+      ]
+    },
+    "linux": {
+      "target": "AppImage"
+    }
+  }
+}

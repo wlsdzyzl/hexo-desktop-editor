@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' file: data: https: http:; font-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'none'">
     <title>Hexo Desktop Editor</title>
     <link rel="stylesheet" href="css/shared.css">
     <style>
@@ -115,7 +116,7 @@
 <script>
     window.MathJax = { tex: { inlineMath: [['\\(','\\)'],['$','$']], displayMath: [['\\[','\\]'],['$$','$$']], processEscapes: true }, svg: { fontCache: 'global' }, startup: { typeset: false } };
 </script>
-<script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+<script id="MathJax-script" async src="node_modules/mathjax/es5/tex-svg.js"></script>
 <script src="js/shared.js"></script>
 <script src="js/photos.js"></script>
 </body>

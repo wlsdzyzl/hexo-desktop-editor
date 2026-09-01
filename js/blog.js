@@ -294,6 +294,7 @@
     }
 
     function openFolder() {
+        if (bridge && bridge.openFolder) { bridge.openFolder(); return; }
         if (ipc && ipc.send) { ipc.send('open-folder'); return; }
         alert('open-folder (ipc not available)');
     }
@@ -449,6 +450,9 @@
 
     // ── Init ─────────────────────────────────────────────────────
 
+    if (/Mac/i.test(navigator.userAgent)) {
+        aiHint.textContent = '按 ⌘I 进入 AI 写作';
+    }
     renderSidebarMsg('正在读取文章...');
     clearEditor('正在读取 Hexo 文章...');
     loadPostsFromDisk();

@@ -14,8 +14,8 @@
         // ── Navigation ──────────────────────────────────────────
 
         navigateTo(page) {
-            if (bridge && bridge.send) {
-                bridge.send('navigate', page);
+            if (bridge && bridge.navigate) {
+                bridge.navigate(page);
             } else if (ipc && ipc.send) {
                 ipc.send('navigate', page);
             } else {
@@ -24,8 +24,8 @@
         },
 
         openExternal(url) {
-            if (bridge && bridge.send) {
-                bridge.send('open-external', url);
+            if (bridge && bridge.openExternal) {
+                bridge.openExternal(url);
             } else if (ipc && ipc.send) {
                 ipc.send('open-external', url);
             }
@@ -64,7 +64,9 @@
                 });
             }
 
-            if (ipc && ipc.send) {
+            if (bridge && bridge.publishPost) {
+                bridge.publishPost();
+            } else if (ipc && ipc.send) {
                 ipc.send('publish-post');
             } else {
                 append('当前窗口没有发布通道。\n');
@@ -155,8 +157,10 @@
             h = h.replace(/__([^_]+)__/g, '<strong>$1</strong>');
             h = h.replace(/\*([^*]+)\*/g, '<em>$1</em>');
             h = h.replace(/_([^_]+)_/g, '<em>$1</em>');
-            h = h.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<img alt="$1" src="$2">');
-            h = h.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2">$1</a>');
+            h = h.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, (_match, alt, url) =>
+                `<img alt="${alt}" src="${Hexo.sanitizeMarkdownUrl(url, true)}">`);
+            h = h.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_match, label, url) =>
+                `<a href="${Hexo.sanitizeMarkdownUrl(url, false)}">${label}</a>`);
             h = h.replace(/@@MATH_(\d+)@@/g, (_, i) => math[Number(i)] || '');
             h = h.replace(/\n/g, '<br>');
             return h;
@@ -179,6 +183,18 @@
         },
 
         renderDisplayMath(latex) { return `<div class="math math-display">\\[${Hexo.escapeHtml(latex)}\\]</div>`; },
+
+        sanitizeMarkdownUrl(rawUrl, isImage) {
+            const url = String(rawUrl || '').trim();
+            const compact = url.replace(/[\u0000-\u0020]+/g, '').toLowerCase();
+            const protocol = compact.match(/^([a-z][a-z0-9+.-]*):/)?.[1] || '';
+            if (!protocol) return url;
+            if (protocol === 'http' || protocol === 'https') return url;
+            if (!isImage && protocol === 'mailto') return url;
+            if (isImage && protocol === 'file') return url;
+            if (isImage && /^data:image\/(?:png|jpe?g|gif|webp|avif);base64,/i.test(compact)) return url;
+            return '#';
+        },
 
         escapeHtml(text) { return String(text).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;'); },
         escapeAttr(text) { return String(text).replace(/[^A-Za-z0-9_-]/g,''); },
@@ -248,6 +264,14 @@
         else document.addEventListener('DOMContentLoaded', fn);
     }
     whenReady(() => {
+        document.addEventListener('click', e => {
+            const link = e.target.closest('.preview a');
+            if (!link) return;
+            e.preventDefault();
+            const url = link.getAttribute('href') || '';
+            if (url !== '#') Hexo.openExternal(url);
+        });
+
         // Author links
         document.addEventListener('click', e => {
             const link = e.target.closest('.js-author-link');

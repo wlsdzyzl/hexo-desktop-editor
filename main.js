@@ -11,20 +11,87 @@ function getConfigPath() {
 }
 const markdownExtensions = new Set(['.md', '.markdown', '.mdown', '.mkd']);
 const imageExtensions = new Set(['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.svg', '.avif']);
+const rendererPages = new Set(['index.html', 'photos.html', 'about.html']);
+const rendererPageUrls = new Set(Array.from(rendererPages, page => pathToFileURL(path.join(__dirname, page)).href));
+
+function isSafeExternalUrl(rawUrl) {
+    try {
+        const url = new URL(String(rawUrl));
+        return url.protocol === 'https:' || url.protocol === 'http:' || url.protocol === 'mailto:';
+    } catch {
+        return false;
+    }
+}
+
+function configureWindowSecurity(win) {
+    win.webContents.on('will-navigate', (event, url) => {
+        if (!rendererPageUrls.has(url)) event.preventDefault();
+    });
+
+    win.webContents.setWindowOpenHandler(({ url }) => {
+        if (isSafeExternalUrl(url)) void shell.openExternal(url);
+        return { action: 'deny' };
+    });
+}
+
+function createApplicationMenu() {
+    if (process.platform !== 'darwin') {
+        Menu.setApplicationMenu(null);
+        return;
+    }
+
+    Menu.setApplicationMenu(Menu.buildFromTemplate([
+        {
+            label: app.name,
+            submenu: [
+                { role: 'about' },
+                { type: 'separator' },
+                { role: 'hide' },
+                { role: 'hideOthers' },
+                { role: 'unhide' },
+                { type: 'separator' },
+                { role: 'quit' },
+            ],
+        },
+        {
+            label: '编辑',
+            submenu: [
+                { role: 'undo' },
+                { role: 'redo' },
+                { type: 'separator' },
+                { role: 'cut' },
+                { role: 'copy' },
+                { role: 'paste' },
+                { role: 'selectAll' },
+            ],
+        },
+        {
+            label: '窗口',
+            submenu: [
+                { role: 'minimize' },
+                { role: 'zoom' },
+                { type: 'separator' },
+                { role: 'front' },
+                { role: 'close' },
+            ],
+        },
+    ]));
+}
 
 function createWindow() {
     const win = new BrowserWindow({
         width: 1200,
         height: 800,
-        icon: path.join(__dirname, 'icon.ico'),
+        ...(process.platform === 'darwin' ? {} : { icon: path.join(__dirname, 'icon.ico') }),
         webPreferences: {
             preload: path.join(__dirname, 'js', 'preload.js'),
             contextIsolation: true,
             nodeIntegration: false,
-            sandbox: false,
+            sandbox: true,
         },
     });
 
+    configureWindowSecurity(win);
     win.loadFile('index.html');
 }
 
@@ -65,7 +132,8 @@ function getPhotosDir(config = readConfigFile()) {
         return null;
     }
 
-    return path.join(path.resolve(config.hexoPath), 'source', config.photoDir);
+    const sourceDir = path.join(path.resolve(config.hexoPath), 'source');
+    return ensureInsideDir(path.resolve(sourceDir, String(config.photoDir)), sourceDir);
 }
 
 function getAboutFilePath(config = readConfigFile()) {
@@ -73,7 +141,9 @@ function getAboutFilePath(config = readConfigFile()) {
         return null;
     }
 
-    return path.join(path.resolve(config.hexoPath), 'source', config.aboutDir, 'index.md');
+    const sourceDir = path.join(path.resolve(config.hexoPath), 'source');
+    const aboutDir = ensureInsideDir(path.resolve(sourceDir, String(config.aboutDir)), sourceDir);
+    return ensureInsideDir(path.join(aboutDir, 'index.md'), sourceDir);
 }
 
 function ensureInsideDir(targetPath, rootDir) {
@@ -357,15 +427,34 @@ async function uploadPhotos(win) {
 }
 
 app.whenReady().then(() => {
-    Menu.setApplicationMenu(null);
+    createApplicationMenu();
 
-    ipcMain.handle('get-config-path', () => getConfigPath());
-    ipcMain.handle('read-config', () => readConfigFile());
-    ipcMain.handle('save-config', (_event, config) => {
+    function isTrustedIpcEvent(event) {
+        const frame = event.senderFrame;
+        return Boolean(frame && frame === event.sender.mainFrame && rendererPageUrls.has(frame.url));
+    }
+
+    function handleTrusted(channel, listener) {
+        ipcMain.handle(channel, (event, ...args) => {
+            if (!isTrustedIpcEvent(event)) throw new Error('拒绝来自非应用页面的 IPC 请求');
+            return listener(event, ...args);
+        });
+    }
+
+    function onTrusted(channel, listener) {
+        ipcMain.on(channel, (event, ...args) => {
+            if (!isTrustedIpcEvent(event)) return;
+            return listener(event, ...args);
+        });
+    }
+
+    handleTrusted('get-config-path', () => getConfigPath());
+    handleTrusted('read-config', () => readConfigFile());
+    handleTrusted('save-config', (_event, config) => {
         writeConfigFile(config);
         return { ok: true };
     });
-    ipcMain.handle('get-hexo-remote', async () => {
+    handleTrusted('get-hexo-remote', async () => {
         const config = readConfigFile();
         if (!config.hexoPath) return '';
         try {
@@ -374,20 +463,20 @@ app.whenReady().then(() => {
             return '';
         }
     });
-    ipcMain.handle('get-posts-dir', () => getPostsDir());
-    ipcMain.handle('list-posts', () => listPostFiles());
-    ipcMain.handle('read-post', (_event, relativePath) => readPostFile(relativePath));
-    ipcMain.handle('save-post-file', (_event, post) => savePostFile(post));
-    ipcMain.handle('delete-post-file', (_event, relativePath) => deletePostFile(relativePath));
-    ipcMain.handle('read-about-file', () => readAboutFile());
-    ipcMain.handle('save-about-file', (_event, doc) => saveAboutFile(doc));
-    ipcMain.handle('get-photos-dir', () => getPhotosDir() || '');
-    ipcMain.handle('list-photos', () => listPhotos());
-    ipcMain.handle('upload-photos', event => uploadPhotos(BrowserWindow.fromWebContents(event.sender)));
-    ipcMain.handle('rename-photo-file', (_event, input) => renamePhotoFile(input));
-    ipcMain.handle('delete-photo-file', (_event, relativePath) => deletePhotoFile(relativePath));
+    handleTrusted('get-posts-dir', () => getPostsDir());
+    handleTrusted('list-posts', () => listPostFiles());
+    handleTrusted('read-post', (_event, relativePath) => readPostFile(relativePath));
+    handleTrusted('save-post-file', (_event, post) => savePostFile(post));
+    handleTrusted('delete-post-file', (_event, relativePath) => deletePostFile(relativePath));
+    handleTrusted('read-about-file', () => readAboutFile());
+    handleTrusted('save-about-file', (_event, doc) => saveAboutFile(doc));
+    handleTrusted('get-photos-dir', () => getPhotosDir() || '');
+    handleTrusted('list-photos', () => listPhotos());
+    handleTrusted('upload-photos', event => uploadPhotos(BrowserWindow.fromWebContents(event.sender)));
+    handleTrusted('rename-photo-file', (_event, input) => renamePhotoFile(input));
+    handleTrusted('delete-photo-file', (_event, relativePath) => deletePhotoFile(relativePath));
 
-    ipcMain.handle('ai-generate', async (_event, prompt) => {
+    handleTrusted('ai-generate', async (_event, prompt) => {
         try {
             const config = readConfigFile();
             const apiKey = config['deepseekAPIKey'];
@@ -425,12 +514,13 @@ app.whenReady().then(() => {
         }
     });
 
-    ipcMain.on('navigate', (event, page) => {
+    onTrusted('navigate', (event, page) => {
+        if (!rendererPages.has(page)) return;
         const win = BrowserWindow.fromWebContents(event.sender);
         if (win) win.loadFile(page);
     });
 
-    ipcMain.on('open-folder', () => {
+    onTrusted('open-folder', () => {
         try {
             const config = readConfigFile();
             const folder = config.hexoPath || __dirname;
@@ -440,15 +530,58 @@ app.whenReady().then(() => {
         }
     });
 
-    ipcMain.on('open-external', (_event, url) => {
-        shell.openExternal(url);
+    onTrusted('open-external', (_event, url) => {
+        if (isSafeExternalUrl(url)) void shell.openExternal(url);
     });
 
-    ipcMain.on('save-post', (_event, post) => savePostFile(post));
+    onTrusted('save-post', (_event, post) => savePostFile(post));
+
+    function getCommandEnv() {
+        const env = { ...process.env, GIT_TERMINAL_PROMPT: '0' };
+        if (process.platform !== 'darwin') return env;
+
+        const homeDir = app.getPath('home');
+        const pathKey = Object.keys(env).find(key => key.toLowerCase() === 'path') || 'PATH';
+        const pathEntries = (env[pathKey] || '').split(path.delimiter).filter(Boolean);
+        const extraEntries = [
+            path.join(homeDir, '.volta', 'bin'),
+            path.join(homeDir, '.asdf', 'shims'),
+            path.join(homeDir, '.local', 'bin'),
+            '/opt/homebrew/bin',
+            '/opt/homebrew/sbin',
+            '/usr/local/bin',
+            '/usr/local/sbin',
+            '/usr/bin',
+            '/bin',
+            '/usr/sbin',
+            '/sbin',
+        ];
+        const versionRoots = [
+            path.join(homeDir, '.nvm', 'versions', 'node'),
+            path.join(homeDir, '.local', 'share', 'fnm', 'node-versions'),
+            path.join(homeDir, '.fnm', 'node-versions'),
+        ];
+
+        for (const root of versionRoots) {
+            if (!fs.existsSync(root)) continue;
+            const versions = fs.readdirSync(root, { withFileTypes: true })
+                .filter(entry => entry.isDirectory())
+                .map(entry => entry.name)
+                .sort((a, b) => b.localeCompare(a, undefined, { numeric: true }));
+
+            for (const version of versions) {
+                const base = path.join(root, version);
+                extraEntries.push(path.join(base, 'bin'), path.join(base, 'installation', 'bin'));
+            }
+        }
+
+        env[pathKey] = Array.from(new Set([...pathEntries, ...extraEntries])).join(path.delimiter);
+        return env;
+    }
 
     function runCommand(command, args, cwd, log, useShell = false) {
         return new Promise((resolve, reject) => {
-            const child = spawn(command, args, { cwd, env: { ...process.env }, shell: useShell });
+            const child = spawn(command, args, { cwd, env: getCommandEnv(), shell: useShell });
             child.stdout.on('data', d => log(d.toString()));
             child.stderr.on('data', d => log(d.toString()));
             child.on('close', code => (code === 0 ? resolve() : reject(new Error(`${command} 退出码：${code}`))));
@@ -456,9 +589,9 @@ app.whenReady().then(() => {
         });
     }
 
-    function execCapture(command, args, cwd) {
+    function execCapture(command, args, cwd, useShell = false) {
         return new Promise((resolve, reject) => {
-            const child = spawn(command, args, { cwd, env: { ...process.env } });
+            const child = spawn(command, args, { cwd, env: getCommandEnv(), shell: useShell });
             let stdout = '', stderr = '';
             child.stdout.on('data', d => { stdout += d.toString(); });
             child.stderr.on('data', d => { stderr += d.toString(); });
@@ -467,7 +600,7 @@ app.whenReady().then(() => {
         });
     }
 
-    ipcMain.on('publish-post', async (event) => {
+    onTrusted('publish-post', async (event) => {
         const win = BrowserWindow.fromWebContents(event.sender);
         if (!win) return;
         const log = (msg) => win.webContents.send('publish-log', msg);
@@ -493,6 +626,35 @@ app.whenReady().then(() => {
         const sourceBranch = config.sourceBrance || 'main';
         const publicBranch = config.publicBrance || 'gh-pages';
 
+        if (sourceBranch === publicBranch) {
+            const message = `源码分支和静态页面分支不能相同: ${sourceBranch}`;
+            log(`${message}\n`);
+            win.webContents.send('publish-done', { success: false, message });
+            return;
+        }
+
+        const sourceStagePaths = [
+            'source',
+            '_config.yml',
+            'package.json',
+            'package-lock.json',
+            'scaffolds',
+            'themes',
+            'scripts',
+            '.gitignore',
+            '.github',
+        ];
+
+        async function getStageableSourcePaths() {
+            const trackedOutput = await execCapture('git', ['ls-files', '--', ...sourceStagePaths], hexoDir);
+            const trackedFiles = trackedOutput ? trackedOutput.split(/\r?\n/) : [];
+
+            return sourceStagePaths.filter(sourcePath => {
+                if (fs.existsSync(path.join(hexoDir, sourcePath))) return true;
+                return trackedFiles.some(file => file === sourcePath || file.startsWith(`${sourcePath}/`));
+            });
+        }
+
         async function safe(label, fn) {
             try {
                 log(`\n[${label}] 开始...\n`);
@@ -508,13 +670,26 @@ app.whenReady().then(() => {
             log('========== 发布开始 ==========\n');
             log(`Hexo 目录：${hexoDir}\n\n`);
 
+            await safe('检查发布环境', async () => {
+                const gitVersion = await execCapture('git', ['--version'], hexoDir);
+                const npxVersion = await execCapture('npx', ['--version'], hexoDir, process.platform === 'win32');
+                log(`${gitVersion}\n`);
+                log(`npx ${npxVersion}\n`);
+            });
+
             // 1. hexo generate
-            await safe('hexo generate', () => runCommand('npx', ['--yes', 'hexo', 'generate'], hexoDir, log, true));
+            await safe('hexo generate', () => runCommand('npx', ['--yes', 'hexo', 'generate'], hexoDir, log, process.platform === 'win32'));
 
             // 2. push source repo
             if (fs.existsSync(path.join(hexoDir, '.git'))) {
                 await safe('推送源码', async () => {
-                    await runCommand('git', ['add', '-A'], hexoDir, log);
+                    const stagePaths = await getStageableSourcePaths();
+                    if (stagePaths.length) {
+                        log(`暂存源码路径：${stagePaths.join(', ')}\n`);
+                        await runCommand('git', ['add', '-A', '--', ...stagePaths], hexoDir, log);
+                    } else {
+                        log('(没有可暂存的源码路径)\n');
+                    }
                     await runCommand('git', ['commit', '-m', commitMsg], hexoDir, log).catch(err => log(`(提交跳过: ${err.message})\n`));
                     await runCommand('git', ['push', 'origin', sourceBranch], hexoDir, log);
                 });
@@ -562,7 +737,7 @@ app.whenReady().then(() => {
         }
     });
 
-    ipcMain.on('open-settings', () => {
+    onTrusted('open-settings', () => {
         // Settings are handled inside the renderer modal.
     });
 

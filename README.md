@@ -21,7 +21,7 @@
 
 ## 安装
 
-Windows 可直接下载安装程序（NSIS 安装包）。
+Windows 可使用 NSIS 安装包；macOS 可使用 DMG 安装包。macOS 版本支持 Apple Silicon 和 Intel Mac，最低系统版本为 macOS 13。
 
 从源码构建：
 
@@ -36,12 +36,22 @@ npm start
 
 ```bash
 npm run build          # 构建当前平台
-npm run build:win      # 构建 Windows NSIS 安装包
+npm run build:mac      # 构建 macOS Universal DMG（arm64 + x64）
+npm run build:mac:arm64 # 仅构建 Apple Silicon DMG
+npm run build:mac:x64  # 仅构建 Intel DMG
+npm run build:win      # 构建 Windows x64 NSIS 安装包
+npm run build:win:portable # 构建 Windows x64 便携版（免安装）
+npm run build:win:arm64 # 构建 Windows ARM64 NSIS 安装包
 ```
+
+macOS 正式公开分发时，需要使用 Apple Developer Program 的 Developer ID Application 证书签名，并提交 Apple 公证；没有证书时仍可生成供本机测试的 DMG。
 
 ## 配置
 
-编辑 `config.json`（打包版本位于 `%APPDATA%/hexo-desktop/config.json`）：
+编辑 `config.json`。打包版本的默认位置：
+
+- Windows：`%APPDATA%/Hexo Desktop Editor/config.json`
+- macOS：`~/Library/Application Support/Hexo Desktop Editor/config.json`
 
 ```json
 {
@@ -72,13 +82,13 @@ npm run build:win      # 构建 Windows NSIS 安装包
 - 左侧文章列表 → 点击切换文章
 - 中间 Markdown 编辑器 → 右侧实时预览
 - 拖拽中间分隔条可调整编辑/预览宽度
-- `Ctrl+S` 保存，标题变更自动重命名文件
+- `Ctrl+S`（macOS 为 `⌘S`）保存，标题变更自动重命名文件
 - 支持新建和删除文章
 
 ### AI 写作
 
-- 编辑器右下角可见"按 Ctrl+I 进入 AI 写作"
-- `Ctrl+I` → 在光标附近弹出输入框
+- 编辑器右下角可见 AI 写作快捷键提示
+- `Ctrl+I`（macOS 为 `⌘I`）→ 在光标附近弹出输入框
 - 输入写作要求 → `Enter` 或点击 ⬆ 发送
 - 生成内容自动插入光标位置
 
@@ -123,19 +133,20 @@ hexo-desktop/
 ├── about.html                # 关于页
 ├── main.js                   # Electron 主进程
 ├── config.json               # 用户配置
-├── icon.ico                  # 应用图标
+├── build/icon.png            # macOS 应用图标源文件
+├── icon.ico                  # Windows 应用图标
 └── package.json
 ```
 
 ## 技术栈
 
-- **Electron 41** — 多进程桌面架构，`contextIsolation: true` 安全隔离
+- **Electron 44** — 多进程桌面架构，启用上下文隔离和渲染进程沙箱
 - **原生 JS** — 无前端框架，透明 textarea + pre 叠层语法高亮
 - **手写 Markdown 渲染器** — 轻量、无外部依赖，位于 `js/shared.js`
 - **MathJax 3** — CDN 加载，支持 LaTeX 数学公式渲染
 - **DeepSeek Chat API** — AI 写作辅助，通过主进程代理请求
 - **electron-builder** — 跨平台打包（NSIS / DMG / AppImage）
-- **simple-git** — 发布流程中的 Git 操作
+- **child_process** — 发布流程中直接调用 `git` 和 `hexo` 命令
 
 ## 许可
 

@@ -1,34 +1,5 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
-const sendChannels = new Set([
-    'navigate',
-    'open-folder',
-    'save-post',
-    'publish-post',
-    'open-settings',
-    'open-external',
-]);
-
-const invokeChannels = new Set([
-    'get-config-path',
-    'read-config',
-    'save-config',
-    'get-hexo-remote',
-    'get-posts-dir',
-    'list-posts',
-    'read-post',
-    'save-post-file',
-    'delete-post-file',
-    'ai-generate',
-    'read-about-file',
-    'save-about-file',
-    'get-photos-dir',
-    'list-photos',
-    'upload-photos',
-    'rename-photo-file',
-    'delete-photo-file',
-]);
-
 const onChannels = new Set([
     'publish-log',
     'publish-done',
@@ -53,18 +24,10 @@ const electronAPI = {
     uploadPhotos: () => ipcRenderer.invoke('upload-photos'),
     renamePhotoFile: input => ipcRenderer.invoke('rename-photo-file', input),
     deletePhotoFile: relativePath => ipcRenderer.invoke('delete-photo-file', relativePath),
-    send: (channel, payload) => {
-        if (sendChannels.has(channel)) {
-            ipcRenderer.send(channel, payload);
-        }
-    },
-    invoke: (channel, payload) => {
-        if (!invokeChannels.has(channel)) {
-            return Promise.reject(new Error(`Unsupported IPC channel: ${channel}`));
-        }
-
-        return ipcRenderer.invoke(channel, payload);
-    },
+    navigate: page => ipcRenderer.send('navigate', page),
+    openFolder: () => ipcRenderer.send('open-folder'),
+    publishPost: () => ipcRenderer.send('publish-post'),
+    openExternal: url => ipcRenderer.send('open-external', url),
     on: (channel, callback) => {
         if (!onChannels.has(channel)) {
             throw new Error(`Unsupported IPC on channel: ${channel}`);
