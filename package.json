@@ -31,7 +31,6 @@
     "appId": "com.wlsdzyzl.hexo-desktop",
     "artifactName": "${productName}-v${version}-${os}-${arch}.${ext}",
     "directories": {
-      "buildResources": "build",
       "output": "dist"
     },
     "files": [
@@ -59,7 +58,7 @@
     },
     "mac": {
       "target": "dmg",
-      "icon": "build/icon.png",
+      "icon": "icon.png",
       "category": "public.app-category.productivity"
     },
     "dmg": {

@@ -107,9 +107,9 @@ body.is-resizing { cursor: col-resize; user-select: none; }
     overflow: auto;
     font-family: Consolas, "Courier New", monospace;
     font-size: 13px; line-height: 1.55;
-    white-space: pre-wrap;
-    word-break: break-word;
-    overflow-wrap: anywhere;
+    white-space: pre;
+    word-break: normal;
+    overflow-wrap: normal;
     tab-size: 4;
 }
 
@@ -124,6 +124,7 @@ body.is-resizing { cursor: col-resize; user-select: none; }
 
 .markdown-editor textarea {
     color: transparent;
+    -webkit-text-fill-color: transparent;
     caret-color: #111;
     background: transparent;
     border: 0; outline: none;

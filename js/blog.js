@@ -230,6 +230,7 @@
             E.postPath.textContent = post.filePath || (post.isNew ? '新文章（尚未保存）' : '');
             updateHighlight();
             updatePreview();
+            resetEditorScroll();
             renderSidebar();
             E.saveBtn.disabled = false;
             E.deleteBtn.disabled = false;
@@ -239,6 +240,7 @@
     function clearEditor(msg) {
         E.titleInput.value = ''; E.textarea.value = ''; E.postPath.textContent = '';
         E.highlight.textContent = ''; E.preview.innerHTML = '<p>' + (msg || 'Markdown 预览') + '</p>';
+        resetEditorScroll();
         E.saveBtn.disabled = true; E.deleteBtn.disabled = true;
     }
 
@@ -256,6 +258,7 @@
         E.deleteBtn.disabled = false;
         E.postPath.textContent = '新文章（尚未保存）';
         updateHighlight(); updatePreview(); renderSidebar();
+        resetEditorScroll();
     }
 
     async function saveCurrent() {
@@ -303,6 +306,12 @@
 
     function updateHighlight() { E.highlight.innerHTML = highlightMarkdownSource(E.textarea.value || ''); }
     function updatePreview() { E.preview.innerHTML = renderMarkdownPreview(E.textarea.value || ''); queueMathTypeset(E.preview); }
+    function resetEditorScroll() {
+        E.textarea.scrollTop = 0;
+        E.textarea.scrollLeft = 0;
+        E.highlight.scrollTop = 0;
+        E.highlight.scrollLeft = 0;
+    }
 
     E.textarea.addEventListener('input', () => {
         const post = findPost(selectedId);

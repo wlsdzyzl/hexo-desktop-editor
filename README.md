@@ -133,7 +133,7 @@ hexo-desktop/
 ├── about.html                # 关于页
 ├── main.js                   # Electron 主进程
 ├── config.json               # 用户配置
-├── build/icon.png            # macOS 应用图标源文件
+├── icon.png                  # macOS 应用图标源文件
 ├── icon.ico                  # Windows 应用图标
 └── package.json
 ```

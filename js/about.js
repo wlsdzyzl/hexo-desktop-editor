@@ -146,6 +146,7 @@
             }
             updateHighlight();
             updatePreview();
+            resetEditorScroll();
         } catch (err) { alert(`读取关于页面失败：${err.message}`); }
     }
 
@@ -167,6 +168,12 @@
 
     function updateHighlight() { highlight.innerHTML = highlightMarkdownSource(textarea.value || ''); }
     function updatePreview() { preview.innerHTML = renderMarkdownPreview(textarea.value || ''); queueMathTypeset(preview); }
+    function resetEditorScroll() {
+        textarea.scrollTop = 0;
+        textarea.scrollLeft = 0;
+        highlight.scrollTop = 0;
+        highlight.scrollLeft = 0;
+    }
 
     textarea.addEventListener('input', () => { updateHighlight(); updatePreview(); });
     textarea.addEventListener('scroll', () => { highlight.scrollTop = textarea.scrollTop; highlight.scrollLeft = textarea.scrollLeft; });

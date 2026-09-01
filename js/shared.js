@@ -83,7 +83,7 @@
                 if (fence) { inFence = !inFence; return `<span class="md-fence">${Hexo.escapeHtml(line)}</span>`; }
                 if (inFence) return `<span class="md-code-line">${Hexo.escapeHtml(line) || ' '}</span>`;
                 return Hexo.highlightMarkdownLine(line);
-            }).join('\n') + '\n';
+            }).join('\n');
         },
 
         highlightMarkdownLine(line) {
