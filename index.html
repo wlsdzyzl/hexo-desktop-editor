@@ -58,6 +58,15 @@
         }
         .ai-hint[hidden] { display: none; }
         .ai-hint:hover { color: #9ca3af; }
+        .upload-status {
+            position: absolute; bottom: 8px; left: 12px;
+            padding: 3px 7px; font-size: 12px; color: #2563eb;
+            pointer-events: none; user-select: none; z-index: 5;
+            background: rgba(255,255,255,0.9);
+            border: 1px solid #dce9ff; border-radius: 4px;
+        }
+        .upload-status[hidden] { display: none; }
+        .upload-status.error { color: #b42318; border-color: #f3d2ce; }
         .ai-popup {
             position: absolute; z-index: 10;
             display: flex; align-items: center; gap: 6px;
@@ -124,6 +133,7 @@
                             <button id="aiSendBtn" title="发送">⬆</button>
                             <span id="aiStatus" class="ai-status" hidden>生成中...</span>
                         </div>
+                        <span id="uploadStatus" class="upload-status" hidden>上传图片中...</span>
                     </div>
                 </div>
                 <div id="editorResizer" class="resize-handle" role="separator" aria-label="调整编辑和预览宽度"></div>

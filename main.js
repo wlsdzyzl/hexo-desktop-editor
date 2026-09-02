@@ -3,6 +3,7 @@ const { spawn } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 const { pathToFileURL } = require('url');
+const crypto = require('crypto');
 
 const isPackaged = app.isPackaged;
 function getConfigPath() {
@@ -11,6 +12,31 @@ function getConfigPath() {
 }
 const markdownExtensions = new Set(['.md', '.markdown', '.mdown', '.mkd']);
 const imageExtensions = new Set(['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.svg', '.avif']);
+const imageMimeTypes = new Map([
+    ['.jpg', 'image/jpeg'],
+    ['.jpeg', 'image/jpeg'],
+    ['.png', 'image/png'],
+    ['.gif', 'image/gif'],
+    ['.webp', 'image/webp'],
+    ['.bmp', 'image/bmp'],
+    ['.svg', 'image/svg+xml'],
+    ['.avif', 'image/avif'],
+]);
+const defaultConfig = {
+    hexoPath: '',
+    photoDir: '',
+    aboutDir: '',
+    sourceBrance: 'main',
+    publicBrance: 'gh-pages',
+    commitMessage: 'Update blog',
+    deepseekAPIKey: '',
+    ossBucket: '',
+    ossRegion: 'oss-cn-hangzhou',
+    ossAccessKeyId: '',
+    ossAccessKeySecret: '',
+    ossUploadPath: 'blog/',
+    ossCustomDomain: '',
+};
 const rendererPages = new Set(['index.html', 'photos.html', 'about.html']);
 const rendererPageUrls = new Set(Array.from(rendererPages, page => pathToFileURL(path.join(__dirname, page)).href));
 
@@ -97,12 +123,12 @@ function createWindow() {
 
 function readConfigFile() {
     if (!fs.existsSync(getConfigPath())) {
-        const defaults = { hexoPath: '', photoDir: '', aboutDir: '', sourceBrance: 'main', publicBrance: 'gh-pages', commitMessage: 'Update blog', deepseekAPIKey: '' };
-        fs.writeFileSync(getConfigPath(), JSON.stringify(defaults, null, 2) + '\n', 'utf8');
-        return defaults;
+        fs.writeFileSync(getConfigPath(), JSON.stringify(defaultConfig, null, 2) + '\n', 'utf8');
+        return { ...defaultConfig };
     }
     const raw = fs.readFileSync(getConfigPath(), 'utf8');
-    return JSON.parse(raw || '{}');
+    const parsed = JSON.parse(raw || '{}');
+    return { ...defaultConfig, ...parsed };
 }
 
 function writeConfigFile(config) {
@@ -395,6 +421,141 @@ function deletePhotoFile(relativePath) {
     return { ok: true, relativePath };
 }
 
+function normalizeOssRegion(region) {
+    let value = String(region || '').trim();
+    if (!value) throw new Error('配置中缺少 ossRegion');
+    if (/^https?:\/\//i.test(value)) {
+        value = new URL(value).hostname;
+    }
+    if (value.endsWith('.aliyuncs.com')) {
+        value = value.slice(0, -'.aliyuncs.com'.length);
+    }
+    if (value.startsWith('oss-')) return value;
+    if (/^[a-z0-9-]+$/i.test(value)) return `oss-${value}`;
+    throw new Error('ossRegion 格式不正确，例如：oss-cn-hangzhou 或 cn-hangzhou');
+}
+
+function normalizeOssUploadPath(prefix) {
+    const value = String(prefix || 'blog/')
+        .trim()
+        .replace(/\\/g, '/')
+        .replace(/^\/+|\/+$/g, '');
+
+    if (!value) return 'blog/';
+
+    return value
+        .split('/')
+        .filter(Boolean)
+        .map(segment => segment.replace(/[^A-Za-z0-9._-]/g, '-'))
+        .join('/') + '/';
+}
+
+function getOssObjectExtension(fileName, mimeType) {
+    const fromName = path.extname(String(fileName || '')).toLowerCase();
+    if (imageMimeTypes.has(fromName)) return fromName;
+
+    const mime = String(mimeType || '').toLowerCase();
+    for (const [extension, type] of imageMimeTypes) {
+        if (type === mime) return extension;
+    }
+
+    return '.png';
+}
+
+function createOssObjectKey(config, fileName, mimeType) {
+    const now = new Date();
+    const pad = value => String(value).padStart(2, '0');
+    const extension = getOssObjectExtension(fileName, mimeType);
+    const prefix = normalizeOssUploadPath(config.ossUploadPath);
+    const random = crypto.randomBytes(6).toString('hex');
+    const datePath = `${now.getFullYear()}/${pad(now.getMonth() + 1)}/${pad(now.getDate())}`;
+
+    return `${prefix}${datePath}/${now.getTime()}-${random}${extension}`;
+}
+
+function buildOssRequestUrl(config, objectKey) {
+    if (config.ossCustomDomain) {
+        let domain = String(config.ossCustomDomain).trim().replace(/\/+$/g, '');
+        if (!/^https?:\/\//i.test(domain)) domain = `https://${domain}`;
+        return `${domain}/${objectKey}`;
+    }
+
+    const region = normalizeOssRegion(config.ossRegion);
+    return `https://${config.ossBucket}.${region}.aliyuncs.com/${objectKey}`;
+}
+
+function buildOssAuthorization(config, objectKey, contentType, date) {
+    const accessKeyId = String(config.ossAccessKeyId || '').trim();
+    const accessKeySecret = String(config.ossAccessKeySecret || '');
+    if (!accessKeyId || !accessKeySecret) {
+        throw new Error('配置中缺少 ossAccessKeyId 或 ossAccessKeySecret');
+    }
+
+    const canonicalizedOssHeaders = '';
+    const canonicalizedResource = `/${config.ossBucket}/${objectKey}`;
+    const stringToSign = [
+        'PUT',
+        '',
+        contentType,
+        date,
+        `${canonicalizedOssHeaders}${canonicalizedResource}`,
+    ].join('\n');
+
+    const signature = crypto.createHmac('sha1', accessKeySecret)
+        .update(stringToSign)
+        .digest('base64');
+
+    return { accessKeyId, signature };
+}
+
+async function uploadImageToOss(input) {
+    const config = readConfigFile();
+    const bucket = String(config.ossBucket || '').trim();
+    if (!bucket) throw new Error('配置中缺少 ossBucket');
+
+    const base64 = String(input && input.data ? input.data : '')
+        .replace(/^data:[^,]+,/i, '');
+    if (!base64) throw new Error('上传图片数据为空');
+
+    const buffer = Buffer.from(base64, 'base64');
+    if (buffer.length > 20 * 1024 * 1024) {
+        throw new Error('单张图片不能超过 20MB');
+    }
+
+    const detectedExtension = getOssObjectExtension(input.fileName, input.mimeType);
+    const mimeType = imageMimeTypes.get(detectedExtension) || String(input.mimeType || '').trim() || 'image/png';
+    const objectKey = createOssObjectKey(config, input.fileName, mimeType);
+    const url = buildOssRequestUrl(config, objectKey);
+    const date = new Date().toUTCString();
+    const { accessKeyId, signature } = buildOssAuthorization(config, objectKey, mimeType, date);
+
+    let response;
+    try {
+        response = await fetch(url, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': mimeType,
+                Date: date,
+                Authorization: `OSS ${accessKeyId}:${signature}`,
+            },
+            body: buffer,
+        });
+    } catch (err) {
+        throw new Error(`无法连接 OSS：${err.message}`);
+    }
+
+    if (!response.ok) {
+        const responseText = await response.text();
+        throw new Error(`OSS 上传失败 (${response.status})：${responseText || '无响应内容'}`);
+    }
+
+    return {
+        success: true,
+        url: buildOssRequestUrl(config, objectKey),
+        objectKey,
+    };
+}
+
 async function uploadPhotos(win) {
     const photosDir = getPhotosDir();
     fs.mkdirSync(photosDir, { recursive: true });
@@ -475,6 +636,7 @@ app.whenReady().then(() => {
     handleTrusted('upload-photos', event => uploadPhotos(BrowserWindow.fromWebContents(event.sender)));
     handleTrusted('rename-photo-file', (_event, input) => renamePhotoFile(input));
     handleTrusted('delete-photo-file', (_event, relativePath) => deletePhotoFile(relativePath));
+    handleTrusted('upload-oss-image', (_event, input) => uploadImageToOss(input));
 
     handleTrusted('ai-generate', async (_event, prompt) => {
         try {

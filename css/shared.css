@@ -160,6 +160,12 @@ body.is-resizing { cursor: col-resize; user-select: none; }
     background: #f6f8fa;
     border-radius: 4px;
 }
+.preview img {
+    display: block;
+    max-width: 100%;
+    height: auto;
+    margin: 0 auto;
+}
 .preview pre { padding: 12px; overflow: auto; background: #f6f8fa; border-radius: 6px; }
 .preview pre code { padding: 0; background: transparent; }
 

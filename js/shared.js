@@ -10,6 +10,27 @@
         bridge,
         ipc,
         path,
+        settingLabel(key) {
+            const labels = {
+                hexoPath: 'Hexo 博客路径',
+                photoDir: '相册目录（source/ 相对路径）',
+                aboutDir: '关于目录（source/ 相对路径）',
+                sourceBrance: '源码分支',
+                publicBrance: '静态页面分支',
+                commitMessage: '发布提交信息',
+                deepseekAPIKey: 'DeepSeek API Key',
+                ossBucket: 'OSS Bucket 名称',
+                ossRegion: 'OSS Region（例如 oss-cn-hangzhou）',
+                ossAccessKeyId: 'OSS AccessKey ID',
+                ossAccessKeySecret: 'OSS AccessKey Secret',
+                ossUploadPath: 'OSS 上传目录前缀',
+                ossCustomDomain: 'OSS 自定义域名（可选）',
+            };
+            return labels[key] || key;
+        },
+        isSecretSetting(key) {
+            return /(?:secret|apiKey)/i.test(String(key || ''));
+        },
 
         // ── Navigation ──────────────────────────────────────────
 

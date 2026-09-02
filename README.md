@@ -10,6 +10,7 @@
 
 - **博客编辑** — Markdown 编辑器（语法高亮 + 实时预览），支持 MathJax 数学公式
 - **AI 写作** — 集成 DeepSeek，`Ctrl+I` 唤起，自动生成内容插入光标位置
+- **图片粘贴上传** — 配置阿里云 OSS 后，在 Markdown 编辑器中粘贴截图会自动上传并插入图片链接
 - **相册管理** — 上传、重命名、删除图片，支持中文文件名
 - **关于页面** — 独立的 Markdown 编辑 + 预览，编辑 `source/about/index.md`
 - **一键发布** — 执行 `hexo generate` + Git 提交推送，实时显示日志
@@ -61,7 +62,13 @@ macOS 正式公开分发时，需要使用 Apple Developer Program 的 Developer
   "sourceBrance": "main",
   "publicBrance": "gh-pages",
   "commitMessage": "Update blog",
-  "deepseekAPIKey": "sk-xxxxxxxxxxxxx"
+  "deepseekAPIKey": "sk-xxxxxxxxxxxxx",
+  "ossBucket": "your-bucket",
+  "ossRegion": "oss-cn-hangzhou",
+  "ossAccessKeyId": "LTAIxxxxxxxx",
+  "ossAccessKeySecret": "xxxxxxxxxxxxxxxx",
+  "ossUploadPath": "blog/",
+  "ossCustomDomain": ""
 }
 ```
 
@@ -74,6 +81,12 @@ macOS 正式公开分发时，需要使用 Apple Developer Program 的 Developer
 | `publicBrance` | 静态页面分支名 | ❌ |
 | `commitMessage` | 发布提交信息 | ❌ |
 | `deepseekAPIKey` | DeepSeek API 密钥，不填则无法使用 AI writing 功能 | ❌ |
+| `ossBucket` | 阿里云 OSS Bucket 名称 | ❌ |
+| `ossRegion` | OSS 地域节点，例如 `oss-cn-hangzhou` | ❌ |
+| `ossAccessKeyId` | 阿里云 AccessKey ID | ❌ |
+| `ossAccessKeySecret` | 阿里云 AccessKey Secret | ❌ |
+| `ossUploadPath` | 上传到 OSS 的目录前缀，默认 `blog/` | ❌ |
+| `ossCustomDomain` | 自定义访问域名/CDN 域名，不填则使用 OSS 默认域名 | ❌ |
 
 ## 使用指南
 
@@ -84,6 +97,13 @@ macOS 正式公开分发时，需要使用 Apple Developer Program 的 Developer
 - 拖拽中间分隔条可调整编辑/预览宽度
 - `Ctrl+S`（macOS 为 `⌘S`）保存，标题变更自动重命名文件
 - 支持新建和删除文章
+
+### 图片粘贴上传
+
+- 在设置中填写 OSS Bucket 名称、Region、AccessKey ID / Secret
+- 复制或截图后，在 Markdown 编辑器中直接粘贴
+- 图片会自动上传到 OSS，并在光标位置插入 `![图片](图片链接)` 形式的 Markdown 图片链接
+- 如填写了 `ossCustomDomain`，返回链接会优先使用自定义域名；否则使用 OSS 默认域名
 
 ### AI 写作
 

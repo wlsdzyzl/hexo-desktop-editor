@@ -24,6 +24,7 @@ const electronAPI = {
     uploadPhotos: () => ipcRenderer.invoke('upload-photos'),
     renamePhotoFile: input => ipcRenderer.invoke('rename-photo-file', input),
     deletePhotoFile: relativePath => ipcRenderer.invoke('delete-photo-file', relativePath),
+    uploadOssImage: input => ipcRenderer.invoke('upload-oss-image', input),
     navigate: page => ipcRenderer.send('navigate', page),
     openFolder: () => ipcRenderer.send('open-folder'),
     publishPost: () => ipcRenderer.send('publish-post'),

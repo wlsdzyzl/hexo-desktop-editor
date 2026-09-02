@@ -64,7 +64,7 @@
         if (!keys.length) { settingsForm.innerHTML = '<p class="settings-status">没有可编辑的配置项。</p>'; return; }
         for (const key of keys) {
             const row = document.createElement('div'); row.className = 'settings-row';
-            const label = document.createElement('label'); label.textContent = key; label.htmlFor = 'setting-' + key;
+            const label = document.createElement('label'); label.textContent = window.Hexo.settingLabel(key); label.htmlFor = 'setting-' + key;
             const input = createSettingInput(key, config[key]);
             row.appendChild(label); row.appendChild(input);
             settingsForm.appendChild(row);
@@ -79,6 +79,10 @@
         if (type === 'object' || type === 'array') { input.value = JSON.stringify(value, null, 2); }
         else if (type === 'boolean') { input.type = 'checkbox'; input.checked = value; }
         else { input.type = 'text'; input.value = value == null ? '' : String(value); }
+        if (type === 'string' && window.Hexo.isSecretSetting(key)) {
+            input.type = 'password';
+            input.autocomplete = 'new-password';
+        }
         return input;
     }
 

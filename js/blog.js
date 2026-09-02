@@ -30,6 +30,7 @@
         sidebar: document.querySelector('.sidebar'),
         editor: document.querySelector('.editor'),
         markdown: document.querySelector('.markdown'),
+        uploadStatus: document.getElementById('uploadStatus'),
         photosBtn: document.getElementById('photosBtn'),
         aboutBtn: document.getElementById('aboutBtn'),
         // Settings
@@ -82,7 +83,7 @@
         if (!keys.length) { E.settingsForm.innerHTML = '<p class="settings-status">没有可编辑的配置项。</p>'; return; }
         for (const key of keys) {
             const row = document.createElement('div'); row.className = 'settings-row';
-            const label = document.createElement('label'); label.textContent = key; label.htmlFor = 'setting-' + key;
+            const label = document.createElement('label'); label.textContent = window.Hexo.settingLabel(key); label.htmlFor = 'setting-' + key;
             const input = createSettingInput(key, config[key]);
             row.appendChild(label); row.appendChild(input);
             E.settingsForm.appendChild(row);
@@ -97,6 +98,10 @@
         if (type === 'object' || type === 'array') { input.value = JSON.stringify(value, null, 2); }
         else if (type === 'boolean') { input.type = 'checkbox'; input.checked = value; }
         else { input.type = 'text'; input.value = value == null ? '' : String(value); }
+        if (type === 'string' && window.Hexo.isSecretSetting(key)) {
+            input.type = 'password';
+            input.autocomplete = 'new-password';
+        }
         return input;
     }
 
@@ -249,7 +254,19 @@
         const now = new Date();
         const pad = v => String(v).padStart(2, '0');
         const date = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
-        const post = { id: 'new-' + Date.now(), title, fileName: title + '.md', relativePath: '', content: '---\ntitle: ' + title + '\ndate: ' + date + '\n---\n\n', dirty: true, isNew: true };
+        const content = [
+            '---',
+            `title: ${title}`,
+            `date: ${date}`,
+            'tags: []',
+            'categories:',
+            'mathjax: true',
+            '---',
+            '',
+            '<!--more-->',
+            '',
+        ].join('\n');
+        const post = { id: 'new-' + Date.now(), title, fileName: title + '.md', relativePath: '', content, dirty: true, isNew: true };
         posts.unshift(post);
         selectedId = post.id;
         E.titleInput.value = post.title;
@@ -302,6 +319,94 @@
         alert('open-folder (ipc not available)');
     }
 
+    // ── OSS 图片粘贴上传 ─────────────────────────────────────────
+
+    let uploadStatusTimer = null;
+
+    function setUploadStatus(message, type) {
+        if (!E.uploadStatus) return;
+        clearTimeout(uploadStatusTimer);
+        E.uploadStatus.textContent = message;
+        E.uploadStatus.className = type ? 'upload-status ' + type : 'upload-status';
+        E.uploadStatus.hidden = false;
+        if (type !== 'error') {
+            uploadStatusTimer = setTimeout(() => { E.uploadStatus.hidden = true; }, 2500);
+        }
+    }
+
+    function fileToDataUrl(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(String(reader.result));
+            reader.onerror = () => reject(reader.error || new Error('读取图片失败'));
+            reader.readAsDataURL(file);
+        });
+    }
+
+    async function uploadOssImage(payload) {
+        if (bridge && bridge.uploadOssImage) return bridge.uploadOssImage(payload);
+        if (ipc && ipc.invoke) return ipc.invoke('upload-oss-image', payload);
+        throw new Error('当前窗口没有图片上传通道');
+    }
+
+    function sanitizeImageAlt(fileName) {
+        const base = String(fileName || 'image').replace(/\.[^.]+$/, '').trim();
+        return base.replace(/[\[\]()!]/g, '') || 'image';
+    }
+
+    async function handleImagePaste(files) {
+        if (!files.length) return;
+
+        const textarea = E.textarea;
+        const start = textarea.selectionStart;
+        const end = textarea.selectionEnd;
+        let inserted = '';
+        let uploadedCount = 0;
+
+        setUploadStatus(files.length > 1 ? `正在上传 ${files.length} 张图片...` : '正在上传图片...', '');
+
+        for (const file of files) {
+            try {
+                const dataUrl = await fileToDataUrl(file);
+                const data = dataUrl.split(',')[1] || '';
+                const result = await uploadOssImage({
+                    fileName: file.name || 'image.png',
+                    mimeType: file.type || 'image/png',
+                    data,
+                });
+                const alt = sanitizeImageAlt(file.name);
+                inserted += `![${alt}](${result.url})\n`;
+                uploadedCount += 1;
+            } catch (err) {
+                setUploadStatus(`图片上传失败：${err.message || err}`, 'error');
+            }
+        }
+
+        if (!inserted) {
+            if (E.uploadStatus && !E.uploadStatus.classList.contains('error')) {
+                setUploadStatus('没有可上传的图片。', 'error');
+            }
+            return;
+        }
+
+        let before = '';
+        let after = '';
+        const valueBefore = textarea.value.slice(0, start);
+        const valueAfter = textarea.value.slice(end);
+        if (valueBefore && !/\n$/.test(valueBefore)) before = '\n';
+        if (valueAfter && !/^\n/.test(valueAfter)) after = '\n';
+
+        textarea.setRangeText(before + inserted.trimEnd() + after, start, end, 'end');
+        textarea.dispatchEvent(new Event('input'));
+        textarea.focus();
+
+        if (uploadedCount === files.length) {
+            setUploadStatus(uploadedCount > 1 ? `已上传并插入 ${uploadedCount} 张图片` : '图片已上传并插入', '');
+        } else {
+            setUploadStatus(`已插入 ${uploadedCount} 张，${files.length - uploadedCount} 张失败`, 'error');
+        }
+    }
+
     // ── Editor ───────────────────────────────────────────────────
 
     function updateHighlight() { E.highlight.innerHTML = highlightMarkdownSource(E.textarea.value || ''); }
@@ -320,6 +425,20 @@
         updateHighlight(); updatePreview(); renderSidebar();
     });
     E.textarea.addEventListener('scroll', () => { E.highlight.scrollTop = E.textarea.scrollTop; E.highlight.scrollLeft = E.textarea.scrollLeft; });
+    E.textarea.addEventListener('paste', (e) => {
+        const items = e.clipboardData && e.clipboardData.items ? Array.from(e.clipboardData.items) : [];
+        let files = items
+            .filter(item => item.kind === 'file' && String(item.type || '').startsWith('image/'))
+            .map(item => item.getAsFile())
+            .filter(Boolean);
+        if (!files.length && e.clipboardData && e.clipboardData.files) {
+            files = Array.from(e.clipboardData.files).filter(file => String(file.type || '').startsWith('image/'));
+        }
+
+        if (!files.length) return;
+        e.preventDefault();
+        handleImagePaste(files);
+    });
     E.titleInput.addEventListener('input', () => {
         const post = findPost(selectedId);
         if (!post) return;
