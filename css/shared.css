@@ -129,7 +129,9 @@ body.is-resizing { cursor: col-resize; user-select: none; }
     background: transparent;
     border: 0; outline: none;
     resize: none;
+    scrollbar-width: none;
 }
+.markdown-editor textarea::-webkit-scrollbar { display: none; }
 .markdown-editor textarea::placeholder { color: #8a8f98; }
 .markdown-editor textarea::selection {
     color: transparent;
